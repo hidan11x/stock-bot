@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html dir="rtl" lang="ar">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>لوحة البوت — الرئيسية</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: system-ui, -apple-system, sans-serif; background: #0f0f1a; color: #e0e0e0; padding: 20px; direction: rtl; }
+.nav { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 20px; padding: 16px; background: #1a1a2e; border-radius: 12px; border: 1px solid #2a2a4a; }
+.nav a { padding: 8px 16px; border-radius: 8px; text-decoration: none; color: #aaa; font-size: 14px; transition: all .2s; }
+.nav a:hover { background: #2a2a4a; color: #fff; }
+.nav a.active { background: #448aff; color: #fff; }
+.header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; padding: 20px; background: #1a1a2e; border-radius: 12px; border: 1px solid #2a2a4a; }
+.header h1 { font-size: 22px; color: #fff; }
+.header h1 small { font-size: 14px; color: #888; font-weight: 400; }
+.status { padding: 6px 16px; border-radius: 20px; font-size: 14px; background: #00c85322; color: #00c853; border: 1px solid #00c85355; }
+.cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; margin-bottom: 20px; }
+.card { background: #1a1a2e; border-radius: 12px; padding: 20px; border: 1px solid #2a2a4a; text-align: center; }
+.card .num { font-size: 28px; font-weight: 700; color: #fff; margin: 8px 0; }
+.card .label { font-size: 13px; color: #888; }
+.card.green .num { color: #00c853; }
+.card.red .num { color: #ff5252; }
+.card.blue .num { color: #448aff; }
+.card.yellow .num { color: #ffd740; }
+.card.purple .num { color: #b388ff; }
+.footer { text-align: center; margin-top: 30px; color: #555; font-size: 13px; }
+.loading { color: #888; text-align: center; padding: 40px; }
+.price-up { color: #00c853; }
+.price-down { color: #ff5252; }
+</style>
+</head>
+<body>
+<div class="header">
+<h1>📊 البوت <small>لوحة التحكم</small></h1>
+<span class="status" id="statusDot">🟢 متصل</span>
+</div>
+<div class="nav">
+<a href="/user/{{ uid }}" class="active"><i class="fas fa-home"></i> الرئيسية</a>
+<a href="/user/{{ uid }}/price?symbol=SPY"><i class="fas fa-chart-line"></i> السعر</a>
+<a href="/user/{{ uid }}/signal?symbol=SPY"><i class="fas fa-bell"></i> التوصيات</a>
+<a href="/user/{{ uid }}/portfolio"><i class="fas fa-briefcase"></i> المحفظة</a>
+<a href="/user/{{ uid }}/watchlist"><i class="fas fa-star"></i> المتابعة</a>
+<a href="/user/{{ uid }}/screener"><i class="fas fa-filter"></i> الفلتر</a>
+<a href="/user/{{ uid }}/sentiment"><i class="fas fa-newspaper"></i> المشاعر</a>
+<a href="/user/{{ uid }}/heatmap"><i class="fas fa-th"></i> الخريطة</a>
+<a href="/user/{{ uid }}/virtual"><i class="fas fa-gamepad"></i> المحاكاة</a>
+</div>
+
+<div class="cards" id="portfolioCards">
+<div class="card blue"><div class="num" id="portfolioCount">—</div><div class="label">عدد الأسهم</div></div>
+<div class="card green"><div class="num" id="portfolioValue">—</div><div class="label">قيمة المحفظة</div></div>
+<div class="card yellow"><div class="num" id="watchlistCount">—</div><div class="label">قائمة المتابعة</div></div>
+<div class="card purple"><div class="num" id="signalsNow">—</div><div class="label">التوصيات</div></div>
+</div>
+
+<div class="nav" style="margin-top:-10px;background:transparent;padding:8px 0;border:none;">
+<input type="text" id="symbolInput" placeholder="رمز السهم (مثل SPY)" value="SPY"
+style="background:#1a1a2e;border:1px solid #2a2a4a;border-radius:8px;padding:10px 16px;color:#fff;font-size:14px;width:200px;">
+<button onclick="goSymbol()" style="background:#448aff;color:#fff;border:none;border-radius:8px;padding:10px 20px;cursor:pointer;">عرض</button>
+</div>
+
+<div class="cards" id="priceCards">
+<div class="card green" id="priceCard"><div class="num" id="priceVal">—</div><div class="label" id="priceLabel">آخر سعر</div></div>
+<div class="card" id="rsiCard"><div class="num" id="rsiVal">—</div><div class="label">RSI (14)</div></div>
+<div class="card" id="adxCard"><div class="num" id="adxVal">—</div><div class="label">ADX (14)</div></div>
+<div class="card" id="scoreCard"><div class="num" id="scoreVal">—</div><div class="label">التقييم</div></div>
+</div>
+
+<div class="footer">Stock Bot Dashboard — {{ NOW }}</div>
+
+<script>
+let currentSymbol = "SPY";
+function goSymbol() {
+    const s = document.getElementById("symbolInput").value.trim().toUpperCase() || "SPY";
+    currentSymbol = s;
+    fetchData(s);
+}
+function fetchData(sym) {
+    fetch(`/api/price?symbol=${sym}`).then(r=>r.json()).then(d=>{
+        if(d.error) return;
+        document.getElementById("priceVal").textContent = d.price + " " + d.currency;
+        document.getElementById("priceLabel").textContent = "آخر سعر" + (d.change ? ` (${d.change >= 0 ? '+' : ''}${d.change?.toFixed(2)} / ${d.change_pct?.toFixed(2)}%)` : "");
+        document.getElementById("rsiVal").textContent = d.rsi?.toFixed(1) ?? "—";
+        document.getElementById("adxVal").textContent = d.adx?.toFixed(1) ?? "—";
+        document.getElementById("scoreVal").textContent = d.score?.toFixed(1) ?? "—";
+        const pc = document.getElementById("priceCard");
+        pc.className = "card " + (d.change >= 0 ? "green" : "red");
+        const rc = document.getElementById("rsiCard");
+        if(d.rsi > 70) rc.className = "card red"; else if(d.rsi < 30) rc.className = "card green"; else rc.className = "card";
+        const sc = document.getElementById("scoreCard");
+        if(d.score > 3) sc.className = "card green"; else if(d.score < -3) sc.className = "card red"; else sc.className = "card";
+    }).catch(()=>{});
+}
+fetch("/api/price?symbol=SPY").then(r=>r.json()).then(d=>{
+    if(!d.error) { document.getElementById("priceVal").textContent = d.price + " " + d.currency; currentSymbol = "SPY"; }
+}).catch(()=>{});
+setInterval(() => fetchData(currentSymbol), 30000);
+</script>
+</body>
+</html>

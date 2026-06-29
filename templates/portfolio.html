@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html dir="rtl" lang="ar">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>المحفظة</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:system-ui,sans-serif;background:#0f0f1a;color:#e0e0e0;padding:20px;direction:rtl}
+.nav{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:20px;padding:16px;background:#1a1a2e;border-radius:12px;border:1px solid #2a2a4a}
+.nav a{padding:8px 16px;border-radius:8px;text-decoration:none;color:#aaa;font-size:14px;transition:.2s}
+.nav a:hover{background:#2a2a4a;color:#fff}
+.nav a.active{background:#448aff;color:#fff}
+.header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;padding:20px;background:#1a1a2e;border-radius:12px;border:1px solid #2a2a4a}
+.header h1{font-size:22px;color:#fff}
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px;margin-bottom:20px}
+.card{background:#1a1a2e;border-radius:12px;padding:20px;border:1px solid #2a2a4a;text-align:center}
+.card .num{font-size:28px;font-weight:700;color:#fff;margin:8px 0}
+.card .lbl{font-size:13px;color:#888}
+.card.green .num{color:#00c853}.card.red .num{color:#ff5252}.card.blue .num{color:#448aff}
+table{width:100%;border-collapse:collapse;background:#1a1a2e;border-radius:12px;overflow:hidden;border:1px solid #2a2a4a}
+th{background:#2a2a4a;padding:12px;text-align:right;font-size:13px;color:#aaa}
+td{padding:10px 12px;border-top:1px solid #2a2a4a;font-size:14px}
+tr:hover td{background:#252540}
+.badge{padding:2px 10px;border-radius:12px;font-size:12px}
+.badge.green{background:#00c85322;color:#00c853}
+.badge.red{background:#ff525222;color:#ff5252}
+.footer{text-align:center;margin-top:30px;color:#555;font-size:13px}
+</style>
+</head>
+<body>
+<div class="header">
+<h1><i class="fas fa-briefcase"></i> المحفظة</h1>
+</div>
+<div class="nav">
+<a href="/user/{{ uid }}"><i class="fas fa-home"></i> الرئيسية</a>
+<a href="/user/{{ uid }}/portfolio" class="active"><i class="fas fa-briefcase"></i> المحفظة</a>
+<a href="/user/{{ uid }}/watchlist"><i class="fas fa-star"></i> المتابعة</a>
+<a href="/user/{{ uid }}/virtual"><i class="fas fa-gamepad"></i> المحاكاة</a>
+</div>
+
+{% set pf = data.portfolio %}
+{% set total_value = pf|sum(attribute='value') %}
+<div class="cards">
+<div class="card blue"><div class="num">{{ pf|length }}</div><div class="lbl">عدد الأسهم</div></div>
+<div class="card green"><div class="num">{{ "%.2f"|format(total_value) if total_value else 0 }}</div><div class="lbl">القيمة الإجمالية</div></div>
+<div class="card"><div class="num">{{ data.watchlist|length }}</div><div class="lbl">قائمة المتابعة</div></div>
+</div>
+
+{% if pf %}
+<h3 style="margin-bottom:12px;color:#ccc;">الأسهم</h3>
+<table>
+<thead><tr><th>#</th><th>الرمز</th><th>الكمية</th><th>متوسط السعر</th><th>السعر الحالي</th><th>الفرق</th><th>الوزن</th></tr></thead>
+<tbody>
+{% for item in pf %}
+{% set live = item.current_price or item.price %}
+{% set diff = ((item.current_price or item.price) - item.price) * item.qty if item.price else 0 %}
+<tr>
+<td>{{ loop.index }}</td>
+<td><a href="/user/{{ uid }}/price?symbol={{ item.symbol }}" style="color:#448aff;text-decoration:none;font-weight:700">{{ item.symbol }}</a></td>
+<td>{{ item.qty }}</td>
+<td>{{ "%.2f"|format(item.price) }}</td>
+<td>{{ "%.2f"|format(live) }}</td>
+<td class="{{ 'green' if diff >= 0 else 'red' }}">{{ "%.2f"|format(diff) }}</td>
+<td>{{ "%.1f"|format(item.value / total_value * 100) if total_value else 0 }}%</td>
+</tr>
+{% endfor %}
+</tbody>
+</table>
+{% else %}
+<div class="card"><div class="lbl">المحفظة فارغة</div></div>
+{% endif %}
+
+<div class="footer">Stock Bot Dashboard — {{ NOW }}</div>
+</body>
+</html>

@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html dir="rtl" lang="ar">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>المحاكاة</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:system-ui,sans-serif;background:#0f0f1a;color:#e0e0e0;padding:20px;direction:rtl}
+.nav{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:20px;padding:16px;background:#1a1a2e;border-radius:12px;border:1px solid #2a2a4a}
+.nav a{padding:8px 16px;border-radius:8px;text-decoration:none;color:#aaa;font-size:14px;transition:.2s}
+.nav a:hover{background:#2a2a4a;color:#fff}
+.nav a.active{background:#448aff;color:#fff}
+.header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;padding:20px;background:#1a1a2e;border-radius:12px;border:1px solid #2a2a4a}
+.header h1{font-size:22px;color:#fff}
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px;margin-bottom:20px}
+.card{background:#1a1a2e;border-radius:12px;padding:20px;border:1px solid #2a2a4a;text-align:center}
+.card .num{font-size:28px;font-weight:700;color:#fff;margin:8px 0}
+.card .lbl{font-size:13px;color:#888}
+.card.green .num{color:#00c853}.card.red .num{color:#ff5252}.card.blue .num{color:#448aff}
+input[type=text],input[type=number]{background:#1a1a2e;border:1px solid #2a2a4a;border-radius:8px;padding:10px 16px;color:#fff;font-size:14px;width:160px}
+select{background:#1a1a2e;border:1px solid #2a2a4a;border-radius:8px;padding:10px 16px;color:#fff;font-size:14px}
+button{background:#448aff;color:#fff;border:none;border-radius:8px;padding:10px 20px;cursor:pointer;font-size:14px}
+button.buy{background:#00c853}
+button.sell{background:#ff5252}
+.trade-box{display:flex;gap:12px;flex-wrap:wrap;align-items:end;padding:20px;background:#1a1a2e;border-radius:12px;border:1px solid #2a2a4a;margin-bottom:20px}
+.trade-field{display:flex;flex-direction:column;gap:4px}
+.trade-field label{font-size:12px;color:#888}
+table{width:100%;border-collapse:collapse;background:#1a1a2e;border-radius:12px;overflow:hidden;border:1px solid #2a2a4a;margin-bottom:20px}
+th{background:#2a2a4a;padding:12px;text-align:right;font-size:13px;color:#aaa}
+td{padding:10px 12px;border-top:1px solid #2a2a4a;font-size:14px}
+tr:hover td{background:#252540}
+.price-up{color:#00c853}.price-down{color:#ff5252}
+.footer{text-align:center;margin-top:30px;color:#555;font-size:13px}
+.msg{text-align:center;padding:30px;color:#888}
+.history-box{max-height:300px;overflow-y:auto;margin-top:12px}
+</style>
+</head>
+<body>
+<div class="header">
+<h1><i class="fas fa-gamepad"></i> محفظة المحاكاة</h1>
+<span style="font-size:14px;color:#888;">💰 ابدأ بـ $100,000 وهمي</span>
+</div>
+<div class="nav">
+<a href="/user/{{ uid }}"><i class="fas fa-home"></i> الرئيسية</a>
+<a href="/user/{{ uid }}/portfolio"><i class="fas fa-briefcase"></i> المحفظة</a>
+<a href="/user/{{ uid }}/virtual" class="active"><i class="fas fa-gamepad"></i> المحاكاة</a>
+</div>
+
+{% set vp = vp %}
+<div class="cards">
+<div class="card blue"><div class="num">{{ "%.2f"|format(vp.cash) }}</div><div class="lbl">💰 النقد</div></div>
+<div class="card green"><div class="num">{{ vp.holdings|length }}</div><div class="lbl">عدد الأسهم</div></div>
+<div class="card"><div class="num" id="totalValue">{{ "%.2f"|format(vp.cash) }}</div><div class="lbl">القيمة الإجمالية</div></div>
+</div>
+
+<div class="trade-box">
+<div class="trade-field"><label>الرمز</label><input type="text" id="symInput" placeholder="SPY" value="SPY"></div>
+<div class="trade-field"><label>الكمية</label><input type="number" id="qtyInput" value="1" min="0" step="1"></div>
+<div class="trade-field"><label>العملية</label><select id="actionInput"><option value="buy">🟢 شراء</option><option value="sell">🔴 بيع</option></select></div>
+<button class="buy" onclick="trade()">تنفيذ</button>
+</div>
+
+<div id="tradeResult" style="margin-bottom:12px;text-align:center;font-size:14px;"></div>
+
+{% if vp.holdings %}
+<h3 style="margin-bottom:12px;color:#ccc;">الأسهم الحالية</h3>
+<table>
+<thead><tr><th>#</th><th>الرمز</th><th>الكمية</th><th>متوسط الشراء</th><th>القيمة</th><th>الفرق</th></tr></thead>
+<tbody id="holdingsBody">
+{% for h in vp.holdings %}
+<tr><td>{{ loop.index }}</td><td><b>{{ h.symbol }}</b></td><td>{{ h.qty }}</td><td>{{ "%.2f"|format(h.avg_price) }}</td><td id="val_{{ h.symbol }}">—</td><td id="diff_{{ h.symbol }}">—</td></tr>
+{% endfor %}
+</tbody>
+</table>
+{% else %}
+<div class="msg">📭 المحفظة فارغة. اشتري أسهم وهمية!</div>
+{% endif %}
+
+{% if vp.history %}
+<h3 style="margin-bottom:12px;color:#ccc;">سجل العمليات</h3>
+<div class="history-box">
+<table>
+<thead><tr><th>#</th><th>العملية</th><th>الرمز</th><th>الكمية</th><th>السعر</th><th>الوقت</th></tr></thead>
+<tbody>
+{% for t in vp.history[-50:]|reverse %}
+<tr><td>{{ loop.index }}</td><td>{% if t.action == 'buy' %}🟢 شراء{% else %}🔴 بيع{% endif %}</td><td>{{ t.symbol }}</td><td>{{ t.qty }}</td><td>{{ "%.2f"|format(t.price) }}</td><td>{{ t.time[:19] }}</td></tr>
+{% endfor %}
+</tbody>
+</table>
+</div>
+{% endif %}
+
+<div class="footer">Stock Bot Dashboard — {{ NOW }}</div>
+
+<script>
+function trade() {
+    const sym = document.getElementById("symInput").value.trim().toUpperCase();
+    const qty = parseFloat(document.getElementById("qtyInput").value);
+    const action = document.getElementById("actionInput").value;
+    if (!sym || qty <= 0) { document.getElementById("tradeResult").innerHTML = "❌ أدخل رمز وكمية صحيحة"; return; }
+    const btn = document.querySelector(".trade-box button");
+    btn.disabled = true; btn.textContent = "جاري...";
+    fetch("/api/virtual/trade", {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({uid: {{ uid }}, action: action, symbol: sym, qty: qty})
+    }).then(r=>r.json()).then(d => {
+        btn.disabled = false; btn.textContent = "تنفيذ";
+        if (d.error) { document.getElementById("tradeResult").innerHTML = "❌ " + d.error; return; }
+        document.getElementById("tradeResult").innerHTML = "✅ تم بنجاح!";
+        location.reload();
+    }).catch(() => {
+        btn.disabled = false; btn.textContent = "تنفيذ";
+        document.getElementById("tradeResult").innerHTML = "❌ خطأ في الاتصال";
+    });
+}
+
+// update live prices
+setInterval(() => {
+    {% for h in vp.holdings %}
+    fetch("/api/price?symbol={{ h.symbol }}").then(r=>r.json()).then(d=>{
+        if(!d.error){
+            const valEl = document.getElementById("val_{{ h.symbol }}");
+            const diffEl = document.getElementById("diff_{{ h.symbol }}");
+            if(valEl) valEl.textContent = (d.price * {{ h.qty }}).toFixed(2);
+            if(diffEl){
+                const diff = (d.price - {{ h.avg_price }}) * {{ h.qty }};
+                diffEl.textContent = (diff >= 0 ? '+' : '') + diff.toFixed(2);
+                diffEl.className = diff >= 0 ? 'price-up' : 'price-down';
+            }
+        }
+    }).catch(()=>{});
+    {% endfor %}
+    // update total
+    let totalEl = document.getElementById("totalValue");
+    if(totalEl) totalEl.textContent = "جاري...";
+}, 15000);
+// also run once on load
+setTimeout(() => location.reload(), 5000);
+</script>
+</body>
+</html>

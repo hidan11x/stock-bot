@@ -1,0 +1,11 @@
+__pycache__
+*.pyc
+*.pyo
+.env
+data.json
+bot_output.log
+bot.log
+err.log
+bot_err.log
+charts/*.png
+.git

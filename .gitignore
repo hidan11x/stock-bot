@@ -1,0 +1,14 @@
+__pycache__
+*.pyc
+*.pyo
+.env
+data.json
+data.db
+bot_output.log
+bot.log
+err.log
+bot_err.log
+dashboard_error.log
+dashboard_out.txt
+dashboard_err.txt
+charts/*.png

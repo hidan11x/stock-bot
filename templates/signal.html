@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html dir="rtl" lang="ar">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>{{ a.symbol }} — التوصية</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:system-ui,sans-serif;background:#0f0f1a;color:#e0e0e0;padding:20px;direction:rtl}
+.nav{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:20px;padding:16px;background:#1a1a2e;border-radius:12px;border:1px solid #2a2a4a}
+.nav a{padding:8px 16px;border-radius:8px;text-decoration:none;color:#aaa;font-size:14px;transition:.2s}
+.nav a:hover{background:#2a2a4a;color:#fff}
+.nav a.active{background:#448aff;color:#fff}
+.header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;padding:20px;background:#1a1a2e;border-radius:12px;border:1px solid #2a2a4a}
+.header h1{font-size:22px;color:#fff}
+.verdict-big{font-size:28px;font-weight:700;padding:8px 20px;border-radius:12px}
+.verdict-buy{background:#00c85322;color:#00c853;border:1px solid #00c853}
+.verdict-sell{background:#ff525222;color:#ff5252;border:1px solid #ff5252}
+.verdict-hold{background:#ffd74022;color:#ffd740;border:1px solid #ffd740}
+.verdict-neutral{background:#448aff22;color:#448aff;border:1px solid #448aff}
+.grid-2{display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:20px}
+@media(max-width:800px){.grid-2{grid-template-columns:1fr}}
+.chart-box{background:#1a1a2e;border-radius:12px;padding:20px;border:1px solid #2a2a4a}
+.chart-box img{width:100%;border-radius:8px}
+.advice-box{background:#1a1a2e;border-radius:12px;padding:20px;border:1px solid #2a2a4a;line-height:1.8;font-size:14px;color:#ccc;white-space:pre-wrap}
+.info-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:12px;margin-top:16px}
+.info-card{background:#252540;border-radius:10px;padding:12px;text-align:center}
+.info-card .val{font-size:18px;font-weight:700;color:#fff;margin-top:4px}
+.info-card .lbl{font-size:12px;color:#888}
+.info-card.green .val{color:#00c853}.info-card.red .val{color:#ff5252}
+.trend{display:inline-block;padding:4px 14px;border-radius:20px;font-size:13px;margin:2px}
+.trend.up{background:#00c85322;color:#00c853;border:1px solid #00c85355}
+.trend.down{background:#ff525222;color:#ff5252;border:1px solid #ff525255}
+.trend.mid{background:#ffd74022;color:#ffd740;border:1px solid #ffd74055}
+input[type=text]{background:#1a1a2e;border:1px solid #2a2a4a;border-radius:8px;padding:10px 16px;color:#fff;font-size:14px;width:200px}
+button{background:#448aff;color:#fff;border:none;border-radius:8px;padding:10px 20px;cursor:pointer}
+.footer{text-align:center;margin-top:30px;color:#555;font-size:13px}
+</style>
+</head>
+<body>
+<div class="header">
+<h1><i class="fas fa-bell"></i> {{ a.symbol }} · {{ a.name }}</h1>
+<div class="verdict-big verdict-{{ 'buy' if a.score > 3 else 'sell' if a.score < -3 else 'neutral' if a.score == 0 else 'hold' }}">
+{{ a.verdict }} · {{ a.score }}/10
+</div>
+</div>
+<div class="nav">
+<a href="/user/{{ uid }}"><i class="fas fa-home"></i> الرئيسية</a>
+<a href="/user/{{ uid }}/price?symbol={{ a.symbol }}"><i class="fas fa-chart-line"></i> السعر</a>
+<a href="/user/{{ uid }}/signal?symbol={{ a.symbol }}" class="active"><i class="fas fa-bell"></i> التوصية</a>
+<a href="/user/{{ uid }}/portfolio"><i class="fas fa-briefcase"></i> المحفظة</a>
+<a href="/user/{{ uid }}/watchlist"><i class="fas fa-star"></i> المتابعة</a>
+</div>
+<div class="nav" style="margin-top:-10px;background:transparent;padding:8px 0;border:none;">
+<input type="text" id="symInput" placeholder="رمز السهم" value="{{ a.symbol }}">
+<button onclick="goSym()">توصية</button>
+</div>
+
+<div class="grid-2">
+<div class="chart-box">
+<h3 style="margin-bottom:12px;color:#ccc;">📈 الشارت</h3>
+{% if chart %}<img src="{{ chart }}" alt="chart">{% else %}<p class="footer">لا يتوفر شارت</p>{% endif %}
+<div class="info-grid">
+<div class="info-card"><div class="lbl">السعر</div><div class="val">{{ a.price }}</div></div>
+<div class="info-card"><div class="lbl">قناعة</div><div class="val">{{ a.conviction }}</div></div>
+<div class="info-card"><div class="lbl">RSI</div><div class="val">{{ "%.1f"|format(a.rsi) if a.rsi else '—' }}</div></div>
+<div class="info-card"><div class="lbl">ADX</div><div class="val">{{ "%.1f"|format(a.adx) if a.adx else '—' }}</div></div>
+</div>
+{% if a.trends %}
+<div style="margin-top:12px;text-align:center">
+{% for period, direction in a.trends.items() %}
+<span class="trend {{ 'up' if direction == 'صاعد' else 'down' if direction == 'هابط' else 'mid' }}">{{ period }}: {{ direction }}</span>
+{% endfor %}
+</div>
+{% endif %}
+</div>
+<div class="chart-box">
+<h3 style="margin-bottom:12px;color:#ccc;">💬 التحليل</h3>
+{% if advice %}<div class="advice-box">{{ advice }}</div>{% else %}<p class="footer">لا يتوفر تحليل لهذا السهم</p>{% endif %}
+</div>
+</div>
+
+<div class="footer">Stock Bot Dashboard — {{ NOW }}</div>
+
+<script>
+function goSym() {
+    const s = document.getElementById("symInput").value.trim().toUpperCase() || "SPY";
+    window.location.href = `/user/{{ uid }}/signal?symbol=${s}`;
+}
+</script>
+</body>
+</html>

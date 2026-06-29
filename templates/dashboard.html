@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html dir="rtl" lang="ar">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>لوحة تحكم البوت</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: system-ui, -apple-system, sans-serif; background: #0f0f1a; color: #e0e0e0; padding: 20px; direction: rtl; }
+.header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; padding: 20px; background: #1a1a2e; border-radius: 12px; border: 1px solid #2a2a4a; }
+.header h1 { font-size: 24px; color: #fff; }
+.header .status { padding: 6px 16px; border-radius: 20px; font-size: 14px; background: #00c85322; color: #00c853; border: 1px solid #00c85355; }
+.cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 16px; margin-bottom: 30px; }
+.card { background: #1a1a2e; border-radius: 12px; padding: 20px; border: 1px solid #2a2a4a; text-align: center; }
+.card .num { font-size: 32px; font-weight: 700; color: #fff; margin: 8px 0; }
+.card .label { font-size: 14px; color: #888; }
+.card.green .num { color: #00c853; }
+.card.red .num { color: #ff5252; }
+.card.blue .num { color: #448aff; }
+.card.yellow .num { color: #ffd740; }
+.charts { display: grid; grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); gap: 20px; margin-bottom: 30px; }
+.chart-box { background: #1a1a2e; border-radius: 12px; padding: 20px; border: 1px solid #2a2a4a; }
+.chart-box h3 { margin-bottom: 16px; font-size: 16px; color: #ccc; }
+table { width: 100%; border-collapse: collapse; background: #1a1a2e; border-radius: 12px; overflow: hidden; border: 1px solid #2a2a4a; }
+th { background: #2a2a4a; padding: 12px; text-align: right; font-size: 13px; color: #aaa; }
+td { padding: 10px 12px; border-top: 1px solid #2a2a4a; font-size: 14px; }
+tr:hover td { background: #252540; }
+.badge { display: inline-block; padding: 2px 10px; border-radius: 12px; font-size: 12px; }
+.badge.active { background: #00c85322; color: #00c853; }
+.badge.pending { background: #ffd74022; color: #ffd740; }
+.badge.expired { background: #ff525222; color: #ff5252; }
+.footer { text-align: center; margin-top: 30px; color: #555; font-size: 13px; }
+</style>
+</head>
+<body>
+
+<div class="header">
+<h1>📊 لوحة تحكم البوت</h1>
+<span class="status">🟢 البوت شغال</span>
+</div>
+
+<div class="cards">
+<div class="card blue"><div class="num">{{ stats.total_users }}</div><div class="label">إجمالي المستخدمين</div></div>
+<div class="card green"><div class="num">{{ stats.active_users }}</div><div class="label">المفعلين</div></div>
+<div class="card yellow"><div class="num">{{ stats.pending_users }}</div><div class="label">بانتظار التفعيل</div></div>
+<div class="card red"><div class="num">{{ stats.sub_expiring }}</div><div class="label">اشتراك منتهي</div></div>
+<div class="card blue"><div class="num">{{ stats.total_commands }}</div><div class="label">إجمالي الأوامر</div></div>
+<div class="card green"><div class="num">{{ stats.total_messages }}</div><div class="label">الرسائل</div></div>
+</div>
+
+<div class="charts">
+<div class="chart-box">
+<h3>📈 الأوامر الأكثر استخداماً</h3>
+<canvas id="cmdChart" height="200"></canvas>
+</div>
+<div class="chart-box">
+<h3>👤 المستخدمين اليوم</h3>
+<canvas id="dailyChart" height="200"></canvas>
+</div>
+</div>
+
+<h3 style="margin-bottom:12px;color:#ccc;">👥 جميع المستخدمين</h3>
+<table>
+<thead><tr><th>#</th><th>المعرف</th><th>الاسم</th><th>اليوزر</th><th>أول دخول</th><th>آخر ظهور</th><th>الاشتراك</th></tr></thead>
+<tbody>
+{% for u in users %}
+<tr>
+<td>{{ loop.index }}</td>
+<td><code>{{ u.id }}</code></td>
+<td>{{ u.name or '—' }}</td>
+<td>{{ u.username or '—' }}</td>
+<td>{{ u.first_seen[:10] if u.first_seen else '—' }}</td>
+<td>{{ u.last_seen[:10] if u.last_seen else '—' }}</td>
+<td>{% if u.days|int == -1 %}<span class="badge active">غير محدد</span>{% elif u.days|int > 0 %}<span class="badge active">{{ u.days }} يوم</span>{% else %}<span class="badge expired">منتهي</span>{% endif %}</td>
+</tr>
+{% endfor %}
+</tbody>
+</table>
+
+<div class="footer">Stock Bot Dashboard — {{ now }}</div>
+
+<script>
+fetch('/api/chart_data').then(r=>r.json()).then(d=>{
+new Chart(document.getElementById('cmdChart'),{
+type:'bar',data:{labels:d.cmd_labels,datasets:[{label:'عدد',data:d.cmd_values,backgroundColor:'#448aff',borderRadius:6}]},
+options:{responsive:true,plugins:{legend:{display:false}},scales:{y:{beginAtZero:true,grid:{color:'#2a2a4a'},ticks:{color:'#888'}},x:{ticks:{color:'#888'}}}}
+});
+new Chart(document.getElementById('dailyChart'),{
+type:'line',data:{labels:d.daily_labels,datasets:[{label:'مستخدمين جدد',data:d.daily_values,borderColor:'#00c853',backgroundColor:'#00c85322',fill:true,tension:0.3}]},
+options:{responsive:true,plugins:{legend:{labels:{color:'#ccc'}}},scales:{y:{beginAtZero:true,grid:{color:'#2a2a4a'},ticks:{color:'#888'}},x:{ticks:{color:'#888'}}}}
+});
+});
+</script>
+</body>
+</html>

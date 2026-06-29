@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html dir="rtl" lang="ar">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>خريطة السوق</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:system-ui,sans-serif;background:#0f0f1a;color:#e0e0e0;padding:20px;direction:rtl}
+.nav{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:20px;padding:16px;background:#1a1a2e;border-radius:12px;border:1px solid #2a2a4a}
+.nav a{padding:8px 16px;border-radius:8px;text-decoration:none;color:#aaa;font-size:14px;transition:.2s}
+.nav a:hover{background:#2a2a4a;color:#fff}
+.nav a.active{background:#448aff;color:#fff}
+.header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;padding:20px;background:#1a1a2e;border-radius:12px;border:1px solid #2a2a4a}
+.header h1{font-size:22px;color:#fff}
+.heatmap{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:8px;margin-bottom:20px}
+.cell{background:#1a1a2e;border-radius:8px;padding:12px;text-align:center;cursor:pointer;transition:.2s;border:1px solid #2a2a4a;font-size:13px}
+.cell:hover{transform:scale(1.05);z-index:10}
+.cell .sym{font-weight:700;color:#fff;font-size:14px}
+.cell .pct{font-size:16px;font-weight:700;margin-top:4px}
+.cell .name{font-size:11px;color:#888;margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.summary{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;margin-bottom:20px}
+.summary-card{background:#1a1a2e;border-radius:12px;padding:16px;border:1px solid #2a2a4a;text-align:center}
+.summary-card .num{font-size:24px;font-weight:700;margin:4px 0}
+.summary-card .lbl{font-size:13px;color:#888}
+.chart-box{background:#1a1a2e;border-radius:12px;padding:20px;border:1px solid #2a2a4a;margin-bottom:20px}
+.footer{text-align:center;margin-top:30px;color:#555;font-size:13px}
+.loading{text-align:center;padding:40px;color:#888}
+</style>
+</head>
+<body>
+<div class="header">
+<h1><i class="fas fa-th"></i> خريطة السوق</h1>
+</div>
+<div class="nav">
+<a href="/user/{{ uid }}"><i class="fas fa-home"></i> الرئيسية</a>
+<a href="/user/{{ uid }}/screener"><i class="fas fa-filter"></i> الفلتر</a>
+<a href="/user/{{ uid }}/heatmap" class="active"><i class="fas fa-th"></i> الخريطة</a>
+</div>
+
+<div class="summary" id="summaryCards">
+<div class="summary-card"><div class="lbl">إجمالي</div><div class="num" id="totalCount">—</div></div>
+<div class="summary-card" style="border-color:#00c85355"><div class="lbl">🟢 صاعد</div><div class="num price-up" id="upCount">—</div></div>
+<div class="summary-card" style="border-color:#ff525255"><div class="lbl">🔴 هابط</div><div class="num price-down" id="downCount">—</div></div>
+<div class="summary-card" style="border-color:#ffd74055"><div class="lbl">⚪ ثابت</div><div class="num" id="flatCount" style="color:#ffd740">—</div></div>
+</div>
+
+<div class="heatmap" id="heatmapGrid">
+<div class="loading">جاري التحميل...</div>
+</div>
+
+<div class="chart-box">
+<h3 style="margin-bottom:12px;color:#ccc;">📊 توزيع الأداء</h3>
+<canvas id="distChart" height="120"></canvas>
+</div>
+
+<div class="footer">Stock Bot Dashboard — {{ NOW }}</div>
+
+<script>
+function loadHeatmap() {
+    const g = document.getElementById("heatmapGrid");
+    g.innerHTML = '<div class="loading">جاري التحميل...</div>';
+    fetch("/api/screener").then(r=>r.json()).then(d => {
+        const items = d.results || [];
+        let up = 0, down = 0, flat = 0;
+        const dist = { neg5:0, neg3:0, neg1:0, flat:0, pos1:0, pos3:0, pos5:0 };
+        g.innerHTML = items.map(x => {
+            const c = x.change_pct || 0;
+            if (c > 1) up++; else if (c < -1) down++; else flat++;
+            if (c <= -5) dist.neg5++;
+            else if (c <= -3) dist.neg3++;
+            else if (c <= -1) dist.neg1++;
+            else if (c < 1) dist.flat++;
+            else if (c < 3) dist.pos1++;
+            else if (c < 5) dist.pos3++;
+            else dist.pos5++;
+            const intensity = Math.min(Math.abs(c) / 5, 1);
+            const color = c > 0 ? `rgba(0,200,83,${0.15 + intensity * 0.6})` :
+                         c < 0 ? `rgba(255,82,82,${0.15 + intensity * 0.6})` :
+                         '#252540';
+            const border = c > 0 ? `rgba(0,200,83,0.4)` :
+                          c < 0 ? `rgba(255,82,82,0.4)` :
+                          '#2a2a4a';
+            return `<div class="cell" style="background:${color};border-color:${border}" onclick="location.href='/user/{{ uid }}/price?symbol=${x.symbol}'">
+                <div class="sym">${x.symbol}</div>
+                <div class="pct" style="color:${c > 0 ? '#00c853' : c < 0 ? '#ff5252' : '#ffd740'}">${c >= 0 ? '+' : ''}${c.toFixed(2)}%</div>
+                <div class="name">${x.name || ''}</div>
+            </div>`;
+        }).join('');
+        document.getElementById("totalCount").textContent = items.length;
+        document.getElementById("upCount").textContent = up;
+        document.getElementById("downCount").textContent = down;
+        document.getElementById("flatCount").textContent = flat;
+        new Chart(document.getElementById("distChart"), {
+            type: 'bar',
+            data: {
+                labels: ['<-5%', '-5%', '-3%', '-1%~1%', '+1%', '+3%', '+5%+'],
+                datasets: [{
+                    label: 'عدد',
+                    data: [dist.neg5, dist.neg3, dist.neg1, dist.flat, dist.pos1, dist.pos3, dist.pos5],
+                    backgroundColor: ['#ff5252','#ff525288','#ff525244','#ffd74044','#00c85344','#00c85388','#00c853'],
+                    borderRadius: 4
+                }]
+            },
+            options: {
+                responsive: true,
+                plugins: { legend: { display: false } },
+                scales: {
+                    y: { beginAtZero: true, grid: { color: '#2a2a4a' }, ticks: { color: '#888' } },
+                    x: { ticks: { color: '#888', font: { size: 11 } } }
+                }
+            }
+        });
+    }).catch(() => { g.innerHTML = '<div class="loading">❌ خطأ في التحميل</div>'; });
+}
+loadHeatmap();
+setInterval(loadHeatmap, 60000);
+</script>
+</body>
+</html>

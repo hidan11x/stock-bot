@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html dir="rtl" lang="ar">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>لوحة الإدارة</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:system-ui,sans-serif;background:#0f0f1a;color:#e0e0e0;padding:20px;direction:rtl}
+.header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;padding:20px;background:#1a1a2e;border-radius:12px;border:1px solid #2a2a4a}
+.header h1{font-size:22px;color:#fff}
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:16px;margin-bottom:20px}
+.card{background:#1a1a2e;border-radius:12px;padding:20px;border:1px solid #2a2a4a;text-align:center}
+.card .num{font-size:28px;font-weight:700;color:#fff;margin:8px 0}
+.card .lbl{font-size:13px;color:#888}
+.card.blue .num{color:#448aff}.card.green .num{color:#00c853}
+table{width:100%;border-collapse:collapse;background:#1a1a2e;border-radius:12px;overflow:hidden;border:1px solid #2a2a4a;margin-bottom:20px}
+th{background:#2a2a4a;padding:12px;text-align:right;font-size:13px;color:#aaa}
+td{padding:10px 12px;border-top:1px solid #2a2a4a;font-size:14px}
+tr:hover td{background:#252540}
+.badge{display:inline-block;padding:2px 10px;border-radius:12px;font-size:12px}
+.badge.active{background:#00c85322;color:#00c853}.badge.expired{background:#ff525222;color:#ff5252}
+.chart-box{background:#1a1a2e;border-radius:12px;padding:20px;border:1px solid #2a2a4a;margin-bottom:20px}
+.grid-2{display:grid;grid-template-columns:1fr 1fr;gap:20px}
+@media(max-width:800px){.grid-2{grid-template-columns:1fr}}
+.footer{text-align:center;margin-top:30px;color:#555;font-size:13px}
+</style>
+</head>
+<body>
+<div class="header">
+<h1><i class="fas fa-cog"></i> لوحة الإدارة</h1>
+<span style="font-size:14px;color:#888;">🔐 {{ users|length }} مستخدم</span>
+</div>
+
+<div class="cards">
+<div class="card blue"><div class="num">{{ users|length }}</div><div class="lbl">إجمالي المستخدمين</div></div>
+<div class="card green"><div class="num">{{ wl|length }}</div><div class="lbl">المفعلين</div></div>
+<div class="card blue"><div class="num">{{ total_msgs }}</div><div class="lbl">إجمالي الرسائل</div></div>
+<div class="card"><div class="num">{{ commands.keys()|list|length }}</div><div class="lbl">الأوامر</div></div>
+</div>
+
+<div class="grid-2">
+<div class="chart-box">
+<h3 style="margin-bottom:12px;color:#ccc;">📊 الأوامر</h3>
+<canvas id="cmdChart" height="150"></canvas>
+</div>
+<div class="chart-box">
+<h3 style="margin-bottom:12px;color:#ccc;">👥 المستخدمين</h3>
+<canvas id="userChart" height="150"></canvas>
+</div>
+</div>
+
+<h3 style="margin-bottom:12px;color:#ccc;">جميع المستخدمين</h3>
+<table>
+<thead><tr><th>#</th><th>المعرف</th><th>الاسم</th><th>اليوزر</th><th>أول دخول</th><th>آخر ظهور</th><th>التفعيل</th></tr></thead>
+<tbody>
+{% for u in users %}
+{% set info = user_info.get(u|string, {}) %}
+<tr>
+<td>{{ loop.index }}</td>
+<td><code>{{ u }}</code></td>
+<td>{{ info.get('name', '—') }}</td>
+<td>{{ info.get('username', '—') }}</td>
+<td>{{ info.get('first_seen', '—')[:10] if info.get('first_seen') else '—' }}</td>
+<td>{{ info.get('last_seen', '—')[:10] if info.get('last_seen') else '—' }}</td>
+<td>{% if u|string in wl %}<span class="badge active">مفعل</span>{% else %}<span class="badge expired">غير مفعل</span>{% endif %}</td>
+</tr>
+{% endfor %}
+</tbody>
+</table>
+
+<div class="footer">Stock Bot Dashboard — {{ NOW }}</div>
+
+<script>
+fetch('/api/chart_data').then(r=>r.json()).then(d=>{
+if(d.cmd_labels){
+new Chart(document.getElementById('cmdChart'),{
+type:'bar',data:{labels:d.cmd_labels,datasets:[{label:'عدد',data:d.cmd_values,backgroundColor:'#448aff',borderRadius:6}]},
+options:{responsive:true,plugins:{legend:{display:false}},scales:{y:{beginAtZero:true,grid:{color:'#2a2a4a'},ticks:{color:'#888'}},x:{ticks:{color:'#888'}}}}});
+}
+if(d.daily_labels){
+new Chart(document.getElementById('userChart'),{
+type:'line',data:{labels:d.daily_labels,datasets:[{label:'مستخدمين جدد',data:d.daily_values,borderColor:'#00c853',backgroundColor:'#00c85322',fill:true,tension:0.3}]},
+options:{responsive:true,plugins:{legend:{labels:{color:'#ccc'}}},scales:{y:{beginAtZero:true,grid:{color:'#2a2a4a'},ticks:{color:'#888'}},x:{ticks:{color:'#888'}}}}});
+}
+}).catch(()=>{});
+</script>
+</body>
+</html>

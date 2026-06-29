@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html dir="rtl" lang="ar">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>قائمة المتابعة</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:system-ui,sans-serif;background:#0f0f1a;color:#e0e0e0;padding:20px;direction:rtl}
+.nav{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:20px;padding:16px;background:#1a1a2e;border-radius:12px;border:1px solid #2a2a4a}
+.nav a{padding:8px 16px;border-radius:8px;text-decoration:none;color:#aaa;font-size:14px;transition:.2s}
+.nav a:hover{background:#2a2a4a;color:#fff}
+.nav a.active{background:#448aff;color:#fff}
+.header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;padding:20px;background:#1a1a2e;border-radius:12px;border:1px solid #2a2a4a}
+.header h1{font-size:22px;color:#fff}
+table{width:100%;border-collapse:collapse;background:#1a1a2e;border-radius:12px;overflow:hidden;border:1px solid #2a2a4a}
+th{background:#2a2a4a;padding:12px;text-align:right;font-size:13px;color:#aaa}
+td{padding:10px 12px;border-top:1px solid #2a2a4a;font-size:14px}
+tr:hover td{background:#252540}
+.price-up{color:#00c853}.price-down{color:#ff5252}
+.footer{text-align:center;margin-top:30px;color:#555;font-size:13px}
+.msg{text-align:center;padding:40px;color:#888;font-size:16px}
+</style>
+</head>
+<body>
+<div class="header">
+<h1><i class="fas fa-star"></i> قائمة المتابعة</h1>
+</div>
+<div class="nav">
+<a href="/user/{{ uid }}"><i class="fas fa-home"></i> الرئيسية</a>
+<a href="/user/{{ uid }}/portfolio"><i class="fas fa-briefcase"></i> المحفظة</a>
+<a href="/user/{{ uid }}/watchlist" class="active"><i class="fas fa-star"></i> المتابعة</a>
+<a href="/user/{{ uid }}/price?symbol=SPY"><i class="fas fa-chart-line"></i> السعر</a>
+</div>
+
+{% set wl = data.watchlist %}
+{% if wl %}
+<table>
+<thead><tr><th>#</th><th>الرمز</th><th>الإجراء</th></tr></thead>
+<tbody>
+{% for sym in wl %}
+<tr>
+<td>{{ loop.index }}</td>
+<td><a href="/user/{{ uid }}/price?symbol={{ sym }}" style="color:#448aff;text-decoration:none;font-weight:700">{{ sym }}</a></td>
+<td><a href="/user/{{ uid }}/signal?symbol={{ sym }}" style="color:#00c853;text-decoration:none;font-size:13px">توصية</a></td>
+</tr>
+{% endfor %}
+</tbody>
+</table>
+{% else %}
+<div class="msg">📭 قائمة المتابعة فارغة.<br>أضف أسهم من البوت باستخدام أمر /watch</div>
+{% endif %}
+
+<div class="footer">Stock Bot Dashboard — {{ NOW }}</div>
+</body>
+</html>
