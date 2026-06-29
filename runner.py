@@ -16,6 +16,12 @@ def start(name, script):
     print(f"[{name}] PID {p.pid}")
     return p
 
+# Limit OpenBLAS threads for Railway's limited resources
+os.environ["OPENBLAS_NUM_THREADS"] = "1"
+os.environ["MKL_NUM_THREADS"] = "1"
+os.environ["NUMEXPR_NUM_THREADS"] = "1"
+os.environ["OMP_NUM_THREADS"] = "1"
+
 if __name__ == "__main__":
     print("Starting bot and dashboard...")
     p1 = start("BOT", BOT_SCRIPT)
