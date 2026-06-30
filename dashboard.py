@@ -367,6 +367,6 @@ def admin_panel():
                           commands=commands, total_msgs=total_msgs, NOW=datetime.now().strftime("%Y-%m-%d %H:%M"))
 
 if __name__ == "__main__":
-    port = int(os.getenv("DASHBOARD_PORT", 5000))
+    port = int(os.getenv("PORT", os.getenv("DASHBOARD_PORT", "5000")))
     print(f"Dashboard: http://0.0.0.0:{port}")
     app.run(host="0.0.0.0", port=port, debug=False)
