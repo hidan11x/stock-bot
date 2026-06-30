@@ -238,6 +238,15 @@ def user_crypto(uid):
 
 # ─── API ───
 
+@app.route("/user/<int:uid>/leaderboard")
+def user_leaderboard(uid):
+    if not _user_allowed(uid):
+        return "🔒 غير مصرح", 403
+    week = db.get_competition_week()
+    entries = db.get_leaderboard(50)
+    user_rank = db.get_user_rank(str(uid))
+    return render_template("leaderboard.html", uid=uid, week=week, entries=entries, user_rank=user_rank, db=db, NOW=datetime.now().strftime("%Y-%m-%d %H:%M"))
+
 @app.route("/api/price")
 def api_price():
     try:

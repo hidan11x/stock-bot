@@ -598,5 +598,38 @@ class Database(dict):
                 c.execute("INSERT INTO daily_users (date, user_id) VALUES (?,?)", (date, uid))
         self.conn.commit()
 
+    def get_competition_week(self):
+        iso = datetime.now().isocalendar()
+        return f"{iso.year}-W{iso.week:02d}"
+
+    def reset_competitions(self):
+        week = self.get_competition_week()
+        current = self.get("competitions", {})
+        if current.get("week") != week:
+            self["competitions"] = {"week": week, "entries": {}}
+            self._set_config("competitions_week", week)
+
+    def update_competition_entry(self, uid, pnl_pct):
+        self.reset_competitions()
+        comp = self.setdefault("competitions", {"week": self.get_competition_week(), "entries": {}})
+        entries = comp.setdefault("entries", {})
+        if uid not in entries or pnl_pct > entries[uid].get("pnl_pct", -999):
+            entries[uid] = {"pnl_pct": round(pnl_pct, 2), "updated": datetime.now().strftime("%Y-%m-%d")}
+
+    def get_leaderboard(self, limit=10):
+        self.reset_competitions()
+        entries = self.get("competitions", {}).get("entries", {})
+        sorted_entries = sorted(entries.items(), key=lambda x: x[1]["pnl_pct"], reverse=True)
+        return [(uid, data) for uid, data in sorted_entries[:limit]]
+
+    def get_user_rank(self, uid):
+        self.reset_competitions()
+        entries = self.get("competitions", {}).get("entries", {})
+        sorted_entries = sorted(entries.items(), key=lambda x: x[1]["pnl_pct"], reverse=True)
+        for i, (euid, data) in enumerate(sorted_entries):
+            if euid == uid:
+                return {"rank": i + 1, "total": len(sorted_entries), "pnl_pct": data["pnl_pct"]}
+        return None
+
 
 db = Database()

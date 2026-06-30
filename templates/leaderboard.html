@@ -1,0 +1,92 @@
+{% extends "base.html" %}
+{% set active_page = 'leaderboard' %}
+{% block title %}المسابقة الأسبوعية{% endblock %}
+{% block page_title %}<i class="fas fa-trophy" style="color:#ffd740;margin-left:8px"></i> المسابقة الأسبوعية{% endblock %}
+{% block head %}
+<style>
+.medal-gold{color:#ffd740}
+.medal-silver{color:#c0c0c0}
+.medal-bronze{color:#cd7f32}
+.leaderboard-table td:first-child{text-align:center;width:50px;font-size:16px;font-weight:700}
+.leaderboard-table td:nth-child(2){font-weight:600}
+.leaderboard-table td:nth-child(3){direction:ltr;text-align:right;font-weight:700}
+.leaderboard-table tr.me td{background:#2196F311;border-top:1px solid #2196F344;border-bottom:1px solid #2196F344}
+.leaderboard-table tr.me td:first-child{border-right:3px solid #2196F3}
+.rank-card{background:#131722;border-radius:12px;padding:20px;border:1px solid #1e2a3a;text-align:center;margin-bottom:20px}
+.rank-card .rank-num{font-size:42px;font-weight:800;color:#2196F3}
+.rank-card .rank-label{font-size:13px;color:#888;margin-top:4px}
+.rank-card .rank-pnl{font-size:18px;font-weight:600;margin-top:8px}
+.week-badge{display:inline-block;background:#2196F322;color:#2196F3;padding:4px 16px;border-radius:20px;font-size:13px;font-weight:600;margin-bottom:16px}
+</style>
+{% endblock %}
+{% block content %}
+<div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:16px">
+<div><span class="week-badge"><i class="far fa-calendar-alt" style="margin-left:6px"></i> {{ week }}</span></div>
+<a href="/user/{{ uid }}/leaderboard" style="background:#2196F3;color:#fff;border:none;border-radius:8px;padding:10px 20px;font-size:13px;cursor:pointer;display:inline-flex;align-items:center;gap:6px"><i class="fas fa-sync-alt"></i> تحديث</a>
+</div>
+
+{% if user_rank %}
+<div class="rank-card">
+<div style="display:flex;align-items:center;justify-content:center;gap:16px;flex-wrap:wrap">
+<div>
+<div class="rank-label">مركزك</div>
+<div class="rank-num">#{{ user_rank.rank }}</div>
+</div>
+<div style="width:1px;height:50px;background:#1e2a3a"></div>
+<div>
+<div class="rank-label">من أصل</div>
+<div class="rank-num" style="font-size:32px">{{ user_rank.total }}</div>
+</div>
+<div style="width:1px;height:50px;background:#1e2a3a"></div>
+<div>
+<div class="rank-label">نسبة الربح</div>
+<div class="rank-pnl" style="color:{% if user_rank.pnl_pct >= 0 %}#00c853{% else %}#ff5252{% endif %}">{{ user_rank.pnl_pct:+.1f }}%</div>
+</div>
+</div>
+</div>
+{% endif %}
+
+<div class="card" style="padding:0;overflow:hidden">
+<table class="leaderboard-table" style="border:none">
+<thead>
+<tr>
+<th style="width:50px;text-align:center">#</th>
+<th>المستخدم</th>
+<th style="text-align:left;direction:ltr">الربح</th>
+</tr>
+</thead>
+<tbody>
+{% for suid, data in entries %}
+{% set info = db.get("user_info", {}).get(suid, {}) %}
+{% set uname = info.get("username", "") %}
+{% set name = info.get("name", "مستخدم " + suid) %}
+{% set display = "@" + uname if uname else name %}
+{% set is_me = suid == uid|string %}
+<tr class="{{ 'me' if is_me else '' }}">
+<td>
+{% if loop.index == 1 %}
+<span class="medal-gold">🥇</span>
+{% elif loop.index == 2 %}
+<span class="medal-silver">🥈</span>
+{% elif loop.index == 3 %}
+<span class="medal-bronze">🥉</span>
+{% else %}
+{{ loop.index }}
+{% endif %}
+</td>
+<td>{{ display }}</td>
+<td style="color:{% if data.pnl_pct >= 0 %}#00c853{% else %}#ff5252{% endif %};text-align:left;direction:ltr">{{ data.pnl_pct:+.1f }}%</td>
+</tr>
+{% else %}
+<tr><td colspan="3" style="text-align:center;padding:30px;color:#666">لا يوجد مشاركون في المسابقة هذا الأسبوع. استخدم المحفظة الافتراضية للتداول والمشاركة!</td></tr>
+{% endfor %}
+</tbody>
+</table>
+</div>
+{% if not user_rank %}
+<div style="text-align:center;margin-top:16px;color:#666;font-size:13px">
+<i class="fas fa-info-circle" style="margin-left:4px"></i>
+للمشاركة في المسابقة، استخدم الأمر <code>/virtual</code> في البوت لبدء التداول الافتراضي.
+</div>
+{% endif %}
+{% endblock %}

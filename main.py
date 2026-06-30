@@ -1091,6 +1091,15 @@ def detect_intent(text, context):
                                "الأسواق", "الاسواق", "وضع السوق"]):
         return ("general_market", None, 0.85)
     
+    # 10. Portfolio / my holdings
+    pf_kw = ["محفظتي", "محفظه", "محفظتي", "ارباحي", "ارباح", "خساير", "خسائري",
+             "استثماري", "فلوسي", "رصيدي", "كم عندي", "اسهمي", "أسهُمي", "محفظة",
+             "مكسب", "خسارة", "كم معي", "محفظتي", "وش عندي", "عندي اسهم", "موجود"]
+    if any(kw in n for kw in pf_kw):
+        return ("portfolio", None, 0.9)
+    if "محفظ" in n or "ارباح" in n or "اسهمي" in n or "سهُمي" in n:
+        return ("portfolio", None, 0.8)
+
     # 10. Screener / opportunities (remaining patterns)
     if any(kw in n for kw in ["زخم", "فلتر", "يحتمل", "افضل", "راقب", "مراقبه", "قوي", "ارشح"]):
         return ("screener_request", None, 0.7)
@@ -1481,6 +1490,51 @@ async def process_ai_chat(update, ctx, text, uid):
         except Exception:
             pass
 
+async def resp_portfolio(update, ctx, msg, uid, text):
+    p = gp(uid)
+    if not p:
+        await msg.edit_text("📭 *محفظتي*\n\nمحفظتك فارغة حالياً.\nلإضافة: `/portfolio add spy 10 450`", parse_mode="Markdown")
+        return
+    def _cc(sym): return "﷼" if sym.endswith(".SR") else "$"
+    total_cost = 0
+    total_val = 0
+    items_detail = []
+    best = None
+    worst = None
+    for item in p:
+        price, chg, pct = get_current_price(item["symbol"])
+        if not price:
+            continue
+        cost = item["qty"] * item["buy_price"]
+        val = item["qty"] * price
+        pl = val - cost
+        pl_pct = ((price - item["buy_price"]) / item["buy_price"]) * 100
+        total_cost += cost
+        total_val += val
+        cur = _cc(item["symbol"])
+        items_detail.append(f"• `{item['symbol']}`: {item['qty']} سهم @ {cur}{price:.2f} ({pl_pct:+.2f}%)")
+        if best is None or pl_pct > best[1]: best = (item["symbol"], pl_pct, cur)
+        if worst is None or pl_pct < worst[1]: worst = (item["symbol"], pl_pct, cur)
+    total_pl = total_val - total_cost
+    total_pl_pct = (total_pl / total_cost) * 100 if total_cost else 0
+    emoji = "🟢" if total_pl >= 0 else "🔴"
+    lines = [
+        f"📊 *محفظتي*\n",
+        f"{emoji} إجمالي القيمة: `{_cc(p[0]['symbol']) if p else '$'}{total_val:,.2f}`",
+        f"💰 التكلفة: `{_cc(p[0]['symbol']) if p else '$'}{total_cost:,.2f}`",
+        f"📈 الربح/الخسارة: `{_cc(p[0]['symbol']) if p else '$'}{total_pl:+,.2f} ({total_pl_pct:+.2f}%)`",
+        f"📊 عدد الأسهم: `{len(p)}`\n",
+    ]
+    if best:
+        lines.append(f"🏆 الأفضل: `{best[0]}` ({best[1]:+.2f}%)")
+    if worst:
+        lines.append(f"📉 الأسوأ: `{worst[0]}` ({worst[1]:+.2f}%)")
+    lines.append("")
+    lines.extend(items_detail[:10])
+    if len(items_detail) > 10:
+        lines.append(f"  ...و {len(items_detail)-10} آخرين")
+    await msg.edit_text("\n".join(lines), parse_mode="Markdown")
+
 async def process_natural_chat(update, ctx, text, uid):
     """Handle natural language messages using intent detection"""
     try:
@@ -1505,6 +1559,8 @@ async def process_natural_chat(update, ctx, text, uid):
             await resp_news(update, ctx, msg, uid, obj, text)
         elif intent == "general_market":
             await resp_market(update, ctx, msg, uid, text)
+        elif intent == "portfolio":
+            await resp_portfolio(update, ctx, msg, uid, text)
         elif intent == "out_of_scope":
             await resp_out_of_scope(update, ctx, msg, uid, text)
         else:
@@ -3228,6 +3284,46 @@ async def crypto_cmd(update, ctx):
     lines.append("\nللحصول على سعر محدد: `/crypto btc`")
     await update.message.reply_text("\n".join(lines), parse_mode="Markdown")
 
+async def scan_cmd(update, ctx):
+    uid = update.effective_user.id
+    msg = await update.message.reply_text("🔍 جاري مسح السوق...")
+    try:
+        from stock_data import get_screener
+        results = get_screener() or []
+        if not results:
+            await msg.edit_text("❌ تعذر جلب بيانات السوق حالياً")
+            return
+        top_buy = []
+        top_sell = []
+        for name, sym, price, chg, pct in results[:30]:
+            hist, _ = get_stock_data(sym, period="6mo", fetch_info=False)
+            if hist is None: continue
+            a = analyze(hist)
+            score = a.get("score", 0)
+            rsi = a.get("rsi", 50)
+            if score > 4 and rsi < 65:
+                top_buy.append((sym, score, rsi, pct))
+            elif score < -4 and rsi > 35:
+                top_sell.append((sym, score, rsi, pct))
+            if len(top_buy) >= 5 and len(top_sell) >= 5:
+                break
+        lines = ["🔍 *نتائج مسح السوق*\n"]
+        if top_buy:
+            lines.append("🟢 *فرص شراء:*")
+            for sym, sc, rsi, pct in top_buy[:5]:
+                lines.append(f"• `{sym}` — نقاط: {sc:.1f} | RSI: {rsi:.0f} | تغير: {pct:+.2f}%")
+        if top_sell:
+            lines.append("\n🔴 *فرص بيع:*")
+            for sym, sc, rsi, pct in top_sell[:5]:
+                lines.append(f"• `{sym}` — نقاط: {sc:.1f} | RSI: {rsi:.0f} | تغير: {pct:+.2f}%")
+        if not top_buy and not top_sell:
+            lines.append("لا توجد فرص واضحة حالياً.")
+        lines.append("\nلمزيد من التفاصيل: `/signal sym`")
+        await msg.edit_text("\n".join(lines), parse_mode="Markdown")
+    except Exception as e:
+        logging.error(f"scan_cmd error: {e}")
+        await msg.edit_text(f"❌ حدث خطأ: {e}")
+
 async def broadcast_cmd(update, ctx):
     """Admin broadcast to all users"""
     uid = update.effective_user.id
@@ -3367,6 +3463,7 @@ async def post_init(app):
         app.job_queue.run_repeating(scheduled_update, interval=3600, first=120)
         app.job_queue.run_repeating(check_reports, interval=3600, first=60)
         app.job_queue.run_repeating(check_subscriptions, interval=3600, first=30)
+        app.job_queue.run_repeating(update_all_competitions, interval=1800, first=60)
 
 async def check_alerts(ctx):
     for uid_str, alerts in list(db["alerts"].items()):
@@ -3455,6 +3552,60 @@ async def web_cmd(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     )
     await update.message.reply_text(msg, disable_web_page_preview=True)
 
+# ─── APP COMMAND (Telegram Mini App) ───
+
+async def app_cmd(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
+    uid = update.effective_user.id
+    url = dashboard_url_for(uid)
+    kb = InlineKeyboardMarkup([
+        [InlineKeyboardButton("🌐 فتح لوحة التحكم", web_app={"url": url})]
+    ])
+    await update.message.reply_text(
+        "🌐 *لوحة التحكم*\n\nاضغط الزر لفتح لوحة التحكم داخل تيليجرام",
+        parse_mode="Markdown", reply_markup=kb
+    )
+
+# ─── TRADING COMPETITIONS ───
+
+async def update_all_competitions(ctx):
+    db.reset_competitions()
+    vps = db.get("virtual_portfolios", {})
+    for uid_str, vp in vps.items():
+        try:
+            cash = vp.get("cash", 0)
+            holdings = vp.get("holdings", [])
+            total_value = cash
+            for h in holdings:
+                price, _, _ = get_current_price(h["symbol"])
+                if price:
+                    total_value += price * h["qty"]
+            initial_capital = 100000
+            pnl_pct = (total_value / initial_capital * 100) - 100
+            db.update_competition_entry(uid_str, pnl_pct)
+        except Exception as e:
+            logging.error(f"update_all_competitions error for {uid_str}: {e}")
+
+async def comp_cmd(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
+    uid = update.effective_user.id
+    week = db.get_competition_week()
+    entries = db.get_leaderboard(10)
+    user_info = db.get("user_info", {})
+    lines = [f"🏆 *مسابقة التداول الأسبوعية*\n\nالأسبوع: {week}\n"]
+    medals = {1: "🥇", 2: "🥈", 3: "🥉"}
+    for i, (suid, data) in enumerate(entries, 1):
+        info = user_info.get(suid, {})
+        uname = info.get("username", "")
+        name = info.get("name", f"مستخدم {suid}")
+        display = f"@{uname}" if uname else name
+        medal = medals.get(i, f"{i}.")
+        lines.append(f"{medal} {display} — {data['pnl_pct']:+.1f}%")
+    user_rank = db.get_user_rank(str(uid))
+    if user_rank:
+        lines.append(f"\nمركزك: #{user_rank['rank']} من {user_rank['total']} متداول ({user_rank['pnl_pct']:+.1f}%)")
+    else:
+        lines.append("\nلم تشارك في المسابقة بعد. استخدم المحفظة الافتراضية للمشاركة!")
+    await update.message.reply_text("\n".join(lines), parse_mode="Markdown")
+
 # ─── MAIN ───
 
 def main():
@@ -3487,8 +3638,9 @@ def main():
         ("risk",risk_cmd),("why",why_cmd),("backtest",backtest_cmd),("mode",mode_cmd),
         ("cancel",cancel_cmd),("exit",cancel_cmd),("plan",plan_cmd),("discount",discount_cmd),("sub",sub_cmd),
         ("broadcast",broadcast_cmd),("pchart",portfolio_chart_cmd),
-        ("sectors",sectors_cmd),("accuracy",accuracy_cmd),("sizing",sizing_cmd),("crypto",crypto_cmd),
+        ("sectors",sectors_cmd),("accuracy",accuracy_cmd),("sizing",sizing_cmd),("crypto",crypto_cmd),("scan",scan_cmd),
         ("web",web_cmd),("dashboard",web_cmd),
+        ("app",app_cmd),("comp",comp_cmd),
     ]: app.add_handler(CommandHandler(cmd, tracked(func, cmd)))
     app.add_handler(MessageHandler(filters.COMMAND, unknown_cmd))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, chat_handler))
