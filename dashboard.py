@@ -216,8 +216,7 @@ def user_sentiment(uid):
 def user_heatmap(uid):
     if not _user_allowed(uid):
         return "🔒 غير مصرح", 403
-    results = get_screener() or []
-    return render_template("heatmap.html", uid=uid, results=results, NOW=datetime.now().strftime("%Y-%m-%d %H:%M"))
+    return render_template("heatmap.html", uid=uid, NOW=datetime.now().strftime("%Y-%m-%d %H:%M"))
 
 @app.route("/user/<int:uid>/virtual")
 def user_virtual(uid):
