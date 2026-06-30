@@ -5,18 +5,17 @@ import subprocess, sys, os, time, signal
 BOT_SCRIPT = os.path.join(os.path.dirname(__file__), "main.py")
 DASH_SCRIPT = os.path.join(os.path.dirname(__file__), "dashboard.py")
 
-processes = []
+process_map = {}
 
 def start(name, script):
     env = os.environ.copy()
     env["PYTHONIOENCODING"] = "utf-8"
     env["PYTHONUTF8"] = "1"
     p = subprocess.Popen([sys.executable, script], env=env)
-    processes.append(p)
+    process_map[name] = p
     print(f"[{name}] PID {p.pid}")
     return p
 
-# Limit OpenBLAS threads for Railway's limited resources
 os.environ["OPENBLAS_NUM_THREADS"] = "1"
 os.environ["MKL_NUM_THREADS"] = "1"
 os.environ["NUMEXPR_NUM_THREADS"] = "1"
@@ -24,24 +23,22 @@ os.environ["OMP_NUM_THREADS"] = "1"
 
 if __name__ == "__main__":
     print("Starting bot and dashboard...")
-    p1 = start("BOT", BOT_SCRIPT)
-    time.sleep(2)
-    p2 = start("DASHBOARD", DASH_SCRIPT)
+    start("BOT", BOT_SCRIPT)
+    time.sleep(3)
+    start("DASHBOARD", DASH_SCRIPT)
 
     def cleanup(sig, frame):
-        for p in processes:
+        for p in process_map.values():
             p.terminate()
         sys.exit(0)
     signal.signal(signal.SIGINT, cleanup)
     signal.signal(signal.SIGTERM, cleanup)
 
     while True:
-        for p in list(processes):
+        for name, p in list(process_map.items()):
             if p.poll() is not None:
-                print(f"Process {p.pid} died, restarting...")
-                processes.remove(p)
-                # determine which script based on index
-                # just restart both
-                start("BOT", BOT_SCRIPT)
-                start("DASHBOARD", DASH_SCRIPT)
-        time.sleep(5)
+                print(f"[{name}] died, restarting in 10s...")
+                del process_map[name]
+                time.sleep(10)  # let old connections close
+                start(name, BOT_SCRIPT if name == "BOT" else DASH_SCRIPT)
+        time.sleep(3)

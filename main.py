@@ -2979,10 +2979,13 @@ async def error_handler(update, ctx):
     global ERROR_COUNT
     ERROR_COUNT += 1
     logging.error(f"Exception: {ctx.error}")
+    # Suppress Conflict errors (normal during restarts/deployments)
+    if "Conflict" in str(ctx.error):
+        return
     err_msg = str(ctx.error)[:300]
     uid = str(update.effective_user.id) if update and update.effective_user else "—"
     cmd = update.message.text.split()[0] if update and update.message and update.message.text else "—"
-    sym = update.message.text.split()[1] if update and update.message and update.message.text and len(update.message.text.split()) > 1 else "—"
+    sym = update.message.text.split()[1] if update and update and update.message and update.message.text and len(update.message.text.split()) > 1 else "—"
     if ADMIN_ID and admin_settings(ADMIN_ID).get("errors", True):
         try:
             await ctx.bot.send_message(ADMIN_ID,
