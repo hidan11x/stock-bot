@@ -3295,10 +3295,10 @@ async def check_alerts(ctx):
 # ─── WEB DASHBOARD COMMAND ───
 
 async def web_cmd(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
-    uid = str(update.effective_user.id)
+    uid = update.effective_user.id
     name = update.effective_user.first_name or ""
     # Check if user is allowed
-    if not db.is_allowed(uid) and uid != ADMIN_ID:
+    if not db.is_allowed(str(uid)) and uid != ADMIN_ID:
         await update.message.reply_text("❌ غير مصرح لك بدخول لوحة التحكم.")
         return
     url = db.get("config", {}).get("dashboard_url", "")
