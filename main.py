@@ -3292,6 +3292,37 @@ async def check_alerts(ctx):
         db["advanced_alerts"][uid_str] = remaining
     save_data(db)
 
+# ─── WEB DASHBOARD COMMAND ───
+
+async def web_cmd(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
+    uid = str(update.effective_user.id)
+    name = update.effective_user.first_name or ""
+    # Check if user is allowed
+    if not db.is_allowed(uid) and uid != ADMIN_ID:
+        await update.message.reply_text("❌ غير مصرح لك بدخول لوحة التحكم.")
+        return
+    url = db.get("config", {}).get("dashboard_url", "")
+    if not url:
+        from config import DASHBOARD_URL
+        url = DASHBOARD_URL
+    if not url:
+        url = "https://stock-bot-production-7ac8.up.railway.app"
+    dashboard_url = f"{url}/user/{uid}"
+    msg = (
+        f"🎯 مرحباً {name}!\n\n"
+        f"رابط لوحة التحكم الخاصة بك:\n"
+        f"🔗 {dashboard_url}\n\n"
+        f"يمكنك من خلالها متابعة:\n"
+        f"• أسعار الأسهم 📊\n"
+        f"• توصيات الشراء والبيع 📈\n"
+        f"• محفظتك الاستثمارية 💼\n"
+        f"• قائمة المتابعة 📋\n"
+        f"• الأخبار والتحليلات 📰\n"
+        f"• التداول الافتراضي 💰\n\n"
+        f"احفظ الرابط للوصول السريع ✅"
+    )
+    await update.message.reply_text(msg, disable_web_page_preview=True)
+
 # ─── MAIN ───
 
 def main():
@@ -3324,7 +3355,7 @@ def main():
         ("risk",risk_cmd),("why",why_cmd),("backtest",backtest_cmd),("mode",mode_cmd),
         ("cancel",cancel_cmd),("exit",cancel_cmd),("plan",plan_cmd),("discount",discount_cmd),("sub",sub_cmd),
         ("broadcast",broadcast_cmd),("pchart",portfolio_chart_cmd),
-        ("sectors",sectors_cmd),("accuracy",accuracy_cmd),("sizing",sizing_cmd),
+        ("sectors",sectors_cmd),("accuracy",accuracy_cmd),("sizing",sizing_cmd),("web",web_cmd),("dashboard",web_cmd),
     ]: app.add_handler(CommandHandler(cmd, tracked(func, cmd)))
     app.add_handler(MessageHandler(filters.COMMAND, unknown_cmd))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, chat_handler))

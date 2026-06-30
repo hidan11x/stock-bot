@@ -18,6 +18,9 @@ GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
 PROXY_URL = os.getenv("PROXY_URL", "")
 # Example: socks5://user:pass@127.0.0.1:1080 or http://127.0.0.1:8080
 
+# Dashboard URL (Railway or your domain)
+DASHBOARD_URL = os.getenv("DASHBOARD_URL", "https://stock-bot-production-7ac8.up.railway.app").rstrip("/")
+
 # Default watchlist
 DEFAULT_SYMBOLS = ["SPY", "QQQ", "^GSPC", "^VIX"]
 
