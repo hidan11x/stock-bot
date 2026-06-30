@@ -92,6 +92,8 @@ def gsa(uid): return db.gsa(uid)
 def ssa(uid, v): db.ssa(uid, v)
 def grp(uid): return db.grp(uid)
 def srp(uid, v): db.srp(uid, v)
+def grs(uid, mode): return db.get_report_sent(uid, mode)
+def srs(uid, mode, value): db.set_report_sent(uid, mode, value)
 def gc(uid): return db.gc(uid)
 def sc(uid, v): db.sc(uid, v)
 def gaa(uid): return db.gaa(uid)
@@ -425,21 +427,20 @@ async def ror(update, ctx, text, keyboard=None):
     if update.callback_query:
         q = update.callback_query
         try:
-            await q.edit_message_text(text, parse_mode="Markdown", reply_markup=keyboard)
+            return await q.edit_message_text(text, parse_mode="Markdown", reply_markup=keyboard)
         except BadRequest as e:
             if "message is not modified" in str(e).lower():
-                return
+                return q.message
             if q.message:
-                await q.message.reply_text(text, parse_mode="Markdown", reply_markup=keyboard)
-            else:
-                await ctx.bot.send_message(update.effective_chat.id, text, parse_mode="Markdown", reply_markup=keyboard)
+                return await q.message.reply_text(text, parse_mode="Markdown", reply_markup=keyboard)
+            return await ctx.bot.send_message(update.effective_chat.id, text, parse_mode="Markdown", reply_markup=keyboard)
         except Exception:
             if q.message:
-                await q.message.reply_text(text, parse_mode="Markdown", reply_markup=keyboard)
-            else:
-                await ctx.bot.send_message(update.effective_chat.id, text, parse_mode="Markdown", reply_markup=keyboard)
+                return await q.message.reply_text(text, parse_mode="Markdown", reply_markup=keyboard)
+            return await ctx.bot.send_message(update.effective_chat.id, text, parse_mode="Markdown", reply_markup=keyboard)
     elif update.message:
-        await update.message.reply_text(text, parse_mode="Markdown", reply_markup=keyboard)
+        return await update.message.reply_text(text, parse_mode="Markdown", reply_markup=keyboard)
+    return None
 
 def check_rate_limit(uid):
     now = time.time()
@@ -476,58 +477,122 @@ def pf(sym, price):
     c = ccy(sym) if sym else "$"
     return f"{c}{price}"
 
-async def start(update, ctx):
-    uid = update.effective_user.id
-    track_user(uid, update.effective_user)
-    kb = InlineKeyboardMarkup([
+MAIN_MENU_TEXT = (
+    "🤖 *مرحباً بك في بوت الأسهم الذكي!*\n\n"
+    "*ابدأ من الأزرار أو اكتب الأمر مباشرة:*\n"
+    "مثال: `/price spy` أو `/signal 1120.sr`\n\n"
+    "*الرموز السريعة:* spy, qqq, btc, eth, gold, oil, aapl, msft, nvda, tsla\n"
+    "سعودي: 2222.sr, 7010.sr, الراجحي, سابك, معادن, stc\n"
+    "مؤشرات: spx, sp500, nasdaq, dow, vix\n\n"
+    "*الأوامر المهمة:*\n"
+    "`/price` سعر السهم\n"
+    "`/signal` توصية\n"
+    "`/analyze` تحليل فني\n"
+    "`/chart` شارت مصور\n"
+    "`/screener` مسح السوق\n"
+    "`/watchlist` قائمتي\n"
+    "`/portfolio` محفظتي\n"
+    "`/alert` تنبيه سعري\n"
+    "`/smartalert` تنبيه ذكي\n"
+    "`/report` تقارير دورية\n"
+    "`/web` لوحة التحكم"
+)
+
+def main_menu_kb():
+    return InlineKeyboardMarkup([
         [InlineKeyboardButton("📊 السوق", callback_data="market:us"),
          InlineKeyboardButton("🔍 تحليل", callback_data="quick_analyze")],
         [InlineKeyboardButton("💰 سعر", callback_data="quick_price"),
-         InlineKeyboardButton("📋 قائمتي", callback_data="my_watchlist")],
-        [InlineKeyboardButton("💼 محفظتي", callback_data="my_portfolio"),
-         InlineKeyboardButton("🏆 المسح", callback_data="screener")],
+         InlineKeyboardButton("🔥 توصية", callback_data="quick_signal")],
+        [InlineKeyboardButton("📋 قائمتي", callback_data="my_watchlist"),
+         InlineKeyboardButton("💼 محفظتي", callback_data="my_portfolio")],
+        [InlineKeyboardButton("🏆 المسح", callback_data="screener"),
+         InlineKeyboardButton("🔔 تنبيه ذكي", callback_data="quick_alerts")],
+        [InlineKeyboardButton("📊 التقارير", callback_data="quick_reports"),
+         InlineKeyboardButton("🌐 الموقع", callback_data="web_home")],
     ])
-    await update.message.reply_text(
-        "🤖 *مرحباً بك في بوت الأسهم الذكي!*\n\n"
-        "*كيف تستخدم البوت:*\n"
-        "اكتب الأمر + مسافة + اسم السهم\n"
-        "مثال: `/price spy`\n\n"
-        "*الرموز:* spy, qqq, btc, eth, gold, oil, aapl, msft, nvda, tsla\n"
-        "سعودي: 2222.sr, 7010.sr, الراجحي, سابك, معادن, stc\n"
-        "مؤشرات: spx, sp500, nasdaq, dow, vix\n\n"
-        "*الأوامر:*\n"
-        "`/price` + رمز - سعر السهم\n"
-        "`/signal` + رمز - توصية 🔥\n"
-        "`/analyze` + رمز - تحليل فني\n"
-        "`/chart` + رمز - شارت مصور 📊\n"
-        "`/advice` + رمز - نصيحة استثمارية\n"
-        "`/levels` + رمز - دعم ومقاومة\n"
-        "`/trend` + رمز - تحليل الاتجاه\n"
-        "`/predict` + رمز - توقع السعر المستقبلي 🔮\n"
-        "`/compare` + أ + ب - مقارنة\n"
-        "`/news` + رمز - أخبار\n"
-        "`/ai` - وضع المحادثة الذكية 💬 (اكتب /ai ثم اسأل)\n"
-        "`/cancel` - إنهاء وضع المحادثة\n"
-        "`/live` - حالة الأسواق 📡\n"
-        "`/screener` - مسح السوق 🏆\n"
-        "`/market` + مجموعة - موجز\n"
-        "`/report` يومي/أسبوعي - تقارير دورية 📊\n"
-        "`/watch` + رمز - إضافة لمتابعة\n"
-        "`/unwatch` + رمز - إزالة\n"
-        "`/watchlist` - قائمتي\n"
-        "`/alert` + رمز + نسبة - تنبيه\n"
-        "`/alerts` - تنبيهاتي\n"
-        "`/smartalert` + رمز + نوع - تنبيه ذكي\n"
-        "`/risk` + رمز - تحليل المخاطر 🛡️\n"
-        "`/why` + رمز - شرح القرار 🧠\n"
-        "`/backtest` + رمز - اختبار تاريخي 📊\n"
-        "`/mode` safe|normal - وضع البوت\n"
-        "`/portfolio` - محفظتي 💼\n"
-        "`/portfolio add` + رمز + كمية + سعر - إضافة\n"
-        "`/portfolio remove` + رقم - حذف\n\n"
-        "أمثلة: `/signal btc` • `/chart spy` • `/compare aapl msft`",
-        parse_mode="Markdown", reply_markup=kb,
+
+async def send_main_menu(update, ctx):
+    await ror(update, ctx, MAIN_MENU_TEXT, main_menu_kb())
+
+def back_to_menu_kb(*rows):
+    return InlineKeyboardMarkup([*rows, [InlineKeyboardButton("↩️ القائمة الرئيسية", callback_data="main_menu")]])
+
+def report_settings_kb():
+    return back_to_menu_kb(
+        [InlineKeyboardButton("📅 يومي", callback_data="report_daily"),
+         InlineKeyboardButton("📆 أسبوعي", callback_data="report_weekly")],
+        [InlineKeyboardButton("⏹ إيقاف", callback_data="report_off")],
     )
+
+def report_settings_text(uid):
+    cur = grp(uid)
+    status = {"daily": "يومي", "weekly": "أسبوعي", "off": "معطل"}.get(cur, "معطل")
+    return f"📊 *التقارير الدورية*\nالحالة: `{status}`\n\nاختر التكرار:"
+
+def smart_alerts_kb():
+    return back_to_menu_kb(
+        [InlineKeyboardButton("SPY دعم", callback_data="smartalert:SPY:support"),
+         InlineKeyboardButton("SPY مقاومة", callback_data="smartalert:SPY:resistance")],
+        [InlineKeyboardButton("AAPL RSI منخفض", callback_data="smartalert:AAPL:rsi_oversold"),
+         InlineKeyboardButton("BTC حجم مفاجئ", callback_data="smartalert:BTC-USD:volume_spike")],
+        [InlineKeyboardButton("📋 تنبيهاتي", callback_data="show_alerts")],
+    )
+
+def smart_alerts_text():
+    return (
+        "🔔 *التنبيهات الذكية*\n\n"
+        "اختر تنبيه جاهز، أو اكتب يدويًا:\n"
+        "`/smartalert spy support`\n\n"
+        "الأنواع المختصرة: دعم، مقاومة، RSI، حجم مفاجئ."
+    )
+
+def dashboard_url_for(uid):
+    url = db.get("config", {}).get("dashboard_url", "")
+    if not url:
+        from config import DASHBOARD_URL
+        url = DASHBOARD_URL
+    if not url:
+        url = "https://stock-bot-production-7ac8.up.railway.app"
+    return f"{url.rstrip('/')}/user/{uid}"
+
+def alerts_summary_text(uid):
+    lines = []
+    idx = 1
+    reg = ga(uid)
+    adv = gaa(uid)
+    smart = gsa(uid)
+    if reg:
+        lines.append("🔔 *تنبيهات حركة سعرية*\n")
+        for a in reg:
+            lines.append(f"{idx}. {a['symbol']} @ {a['threshold']}%")
+            idx += 1
+        lines.append("")
+    if adv:
+        lines.append("🎯 *تنبيهات متقدمة*\n")
+        for a in adv:
+            if a["type"] == "target":
+                lines.append(f"{idx}. 🎯 {a['symbol']} → {ccy(a['symbol'])}{a['value']:,.2f}")
+            elif a["type"] == "day_change":
+                lines.append(f"{idx}. 📊 {a['symbol']} تغيير {a['value']}%")
+            idx += 1
+        lines.append("")
+    if smart:
+        lines.append("🧠 *تنبيهات ذكية*\n")
+        for a in smart:
+            status = "✅ تم" if a.get("triggered") else "⏳ نشط"
+            lines.append(f"{idx}. {status} {a['symbol']} - {SMART_TYPES.get(a['type'], a['type'])}")
+            idx += 1
+        lines.append("")
+    if not lines:
+        return "ℹ️ لا توجد تنبيهات بعد.\nأضف تنبيهًا من الأزرار أو اكتب: `/alert spy 2`"
+    lines.append("🗑 للحذف: `/alert_remove رقم`")
+    return "\n".join(lines)
+
+async def start(update, ctx):
+    uid = update.effective_user.id
+    track_user(uid, update.effective_user)
+    await send_main_menu(update, ctx)
 
 async def help_cmd(update, ctx):
     await start(update, ctx)
@@ -2238,7 +2303,7 @@ async def alert_cmd(update, ctx):
         al.append({"type":"target","symbol":sym,"value":target,"last_price":None})
         saa(uid, al)
         p, _, _ = get_current_price(sym)
-        cur_str = f" (الحالي: {ccy(sym)}{target:,.2f})" if p else ""
+        cur_str = f" (الحالي: {ccy(sym)}{p:,.2f})" if p else ""
         await update.message.reply_text(f"🎯 تنبيه سعر مستهدف لـ `{sym}`: {ccy(sym)}{target:,.2f}{cur_str}")
     elif sub in ("day", "يوم"):
         if len(args) < 3:
@@ -2262,27 +2327,7 @@ async def alert_cmd(update, ctx):
 
 async def alerts_cmd(update, ctx):
     uid = update.effective_user.id
-    lines = []
-    reg = ga(uid)
-    adv = gaa(uid)
-    if reg:
-        lines.append("🔔 *تنبيهات حركة سعرية*\n")
-        for i, a in enumerate(reg, 1):
-            lines.append(f"{i}. {a['symbol']} @ {a['threshold']}%")
-        lines.append("")
-    if adv:
-        lines.append("🎯 *تنبيهات متقدمة*\n")
-        for i, a in enumerate(adv, 1):
-            if a["type"] == "target":
-                lines.append(f"{i}. 🎯 {a['symbol']} → {ccy(a['symbol'])}{a['value']:,.2f}")
-            elif a["type"] == "day_change":
-                lines.append(f"{i}. 📊 {a['symbol']} تغيير {a['value']}%")
-        lines.append("")
-    if not lines:
-        await update.message.reply_text("ℹ️ لا توجد\nأضف: `/alert spy 2` أو `/alert target spy 200`")
-        return
-    lines.append("🗑 للحذف: `/alert_remove رقم`")
-    await update.message.reply_text("\n".join(lines), parse_mode="Markdown")
+    await update.message.reply_text(alerts_summary_text(uid), parse_mode="Markdown")
 
 async def alert_remove_cmd(update, ctx):
     uid = update.effective_user.id
@@ -2307,6 +2352,13 @@ async def alert_remove_cmd(update, ctx):
         removed = adv.pop(idx)
         saa(uid, adv)
         await update.message.reply_text(f"🗑 تم حذف تنبيه `{removed['symbol']}`")
+        return
+    idx -= len(adv)
+    smart = gsa(uid)
+    if 0 <= idx < len(smart):
+        removed = smart.pop(idx)
+        ssa(uid, smart)
+        await update.message.reply_text(f"🗑 تم حذف التنبيه الذكي `{removed['symbol']}`")
         return
     await update.message.reply_text("❌ رقم غير موجود")
 
@@ -2362,19 +2414,12 @@ async def report_cmd(update, ctx):
         else:
             await update.message.reply_text("❗ استخدم: `/report يومي` أو `/report أسبوعي` أو `/report off`")
         return
-    cur = grp(uid)
-    status = {"daily": "يومي", "weekly": "أسبوعي", "off": "معطل"}.get(cur, "معطل")
-    kb = InlineKeyboardMarkup([
-        [InlineKeyboardButton("📅 يومي", callback_data="report_daily"),
-         InlineKeyboardButton("📆 أسبوعي", callback_data="report_weekly")],
-        [InlineKeyboardButton("⏹ إيقاف", callback_data="report_off")],
-    ])
-    await update.message.reply_text(f"📊 *التقارير الدورية*\nالحالة: {status}\n\nاختر التكرار:", parse_mode="Markdown", reply_markup=kb)
+    await update.message.reply_text(report_settings_text(uid), parse_mode="Markdown", reply_markup=report_settings_kb())
 
 async def send_portfolio_report(uid, ctx):
     p = gp(uid)
     if not p:
-        return
+        return False
     lines = ["📊 *تقرير المحفظة الدوري*\n"]; total_cost=0; total_val=0
     for i, item in enumerate(p, 1):
         price, chg, pct = get_current_price(item["symbol"])
@@ -2402,20 +2447,30 @@ async def send_portfolio_report(uid, ctx):
         lines += ["","━━━━━",f"💰 التكلفة: {cur}{total_cost:,.2f}",f"💵 القيمة: {cur}{total_val:,.2f}",f"{'🟢' if tpl>=0 else '🔴'} الربح: {cur}{tpl:+,.2f} ({tplp:+.2f}%)"]
     try:
         await ctx.bot.send_message(uid, "\n".join(lines), parse_mode="Markdown")
+        return True
     except Exception:
-        pass
+        return False
 
 async def check_reports(ctx):
     now = datetime.now()
+    today_key = now.strftime("%Y-%m-%d")
+    iso = now.isocalendar()
+    week_key = f"{iso.year}-W{iso.week:02d}"
     for uid_str, mode in list(db["reports"].items()):
         if mode == "off":
             continue
         uid = int(uid_str)
         try:
             if mode == "daily":
-                await send_portfolio_report(uid, ctx)
+                if grs(uid, "daily") == today_key:
+                    continue
+                if await send_portfolio_report(uid, ctx):
+                    srs(uid, "daily", today_key)
             elif mode == "weekly" and now.weekday() == 6:
-                await send_portfolio_report(uid, ctx)
+                if grs(uid, "weekly") == week_key:
+                    continue
+                if await send_portfolio_report(uid, ctx):
+                    srs(uid, "weekly", week_key)
         except Exception as e:
             logging.warning(f"check_reports for {uid} failed: {e}")
 
@@ -2760,17 +2815,50 @@ async def unknown_cmd(update, ctx):
 
 async def button_handler(update, ctx):
     q = update.callback_query; await q.answer(); data = q.data
+    uid = update.effective_user.id
+    if data == "main_menu": await send_main_menu(update, ctx); return
     if data == "screener": await screener_cmd(update, ctx); return
     if data == "my_watchlist": await watchlist_cmd(update, ctx); return
     if data == "my_portfolio": await portfolio_cmd(update, ctx); return
     if data == "portfolio_chart": await portfolio_chart_cmd(update, ctx); return
     if data == "quick_analyze":
-        kb = InlineKeyboardMarkup([[InlineKeyboardButton("🇺🇸 SPY",callback_data="analyze:SPY"),InlineKeyboardButton("₿ BTC",callback_data="analyze:BTC-USD")],[InlineKeyboardButton("🪨 GOLD",callback_data="analyze:GC=F"),InlineKeyboardButton("🇸🇦 سابك",callback_data="analyze:2010.SR")]])
-        await q.edit_message_text("🔍 اختر:", reply_markup=kb); return
+        await q.edit_message_text("🔍 اختر سهمًا للتحليل:", reply_markup=suggest_kb("analyze")); return
     if data == "quick_price":
-        kb = InlineKeyboardMarkup([[InlineKeyboardButton("🇺🇸 SPY",callback_data="price:SPY"),InlineKeyboardButton("₿ BTC",callback_data="price:BTC-USD")],[InlineKeyboardButton("🪨 GOLD",callback_data="price:GC=F"),InlineKeyboardButton("🇸🇦 سابك",callback_data="price:2010.SR")]])
-        await q.edit_message_text("💰 اختر:", reply_markup=kb); return
-    uid = update.effective_user.id
+        await q.edit_message_text("💰 اختر سهمًا للسعر:", reply_markup=suggest_kb("price")); return
+    if data == "quick_signal":
+        await q.edit_message_text("🔥 اختر سهمًا للتوصية:", reply_markup=suggest_kb("signal")); return
+    if data == "quick_alerts":
+        await q.edit_message_text(smart_alerts_text(), parse_mode="Markdown", reply_markup=smart_alerts_kb()); return
+    if data == "quick_reports":
+        await q.edit_message_text(report_settings_text(uid), parse_mode="Markdown", reply_markup=report_settings_kb()); return
+    if data == "show_alerts":
+        await q.edit_message_text(alerts_summary_text(uid), parse_mode="Markdown", reply_markup=back_to_menu_kb([InlineKeyboardButton("🔔 إضافة تنبيه ذكي", callback_data="quick_alerts")])); return
+    if data == "web_home":
+        if not db.is_allowed(str(uid)) and uid != ADMIN_ID:
+            await q.edit_message_text("❌ غير مصرح لك بدخول لوحة التحكم.", reply_markup=back_to_menu_kb()); return
+        url = dashboard_url_for(uid)
+        kb = InlineKeyboardMarkup([
+            [InlineKeyboardButton("🌐 فتح لوحة التحكم", url=url)],
+            [InlineKeyboardButton("↩️ القائمة الرئيسية", callback_data="main_menu")],
+        ])
+        await q.edit_message_text(f"🌐 *لوحة التحكم*\n\nرابطك الخاص جاهز. افتحه من الزر بالأسفل:\n{url}", parse_mode="Markdown", reply_markup=kb); return
+    if data.startswith("smartalert:"):
+        parts = data.split(":", 2)
+        if len(parts) != 3 or parts[2] not in SMART_TYPES:
+            await q.edit_message_text("❌ نوع التنبيه غير معروف.", reply_markup=smart_alerts_kb()); return
+        sym = resolve_symbol(parts[1])
+        alert_type = parts[2]
+        alerts = gsa(uid)
+        exists = any(a.get("symbol") == sym and a.get("type") == alert_type and not a.get("triggered") for a in alerts)
+        if not exists:
+            alerts.append({"symbol": sym, "type": alert_type, "triggered": False})
+            ssa(uid, alerts)
+        status = "موجود مسبقًا" if exists else "تمت إضافته"
+        await q.edit_message_text(
+            f"✅ {status}: {sym} - {SMART_TYPES[alert_type]}",
+            parse_mode="Markdown",
+            reply_markup=back_to_menu_kb([InlineKeyboardButton("📋 تنبيهاتي", callback_data="show_alerts"), InlineKeyboardButton("🔔 إضافة آخر", callback_data="quick_alerts")])
+        ); return
     if data == "ai_clear":
         sc(uid, [])
         await q.edit_message_text("✅ تم مسح المحادثة")
@@ -3127,14 +3215,17 @@ async def portfolio_chart_cmd(update, ctx):
     uid = update.effective_user.id
     p = gp(uid)
     if not p:
-        await update.message.reply_text("💼 *محفظتي*\n\nفارغة\nلإضافة: `/portfolio add spy 10 450`")
+        await ror(update, ctx, "💼 *محفظتي*\n\nفارغة\nلإضافة: `/portfolio add spy 10 450`")
         return
     msg = await ror(update, ctx, "⏳ جاري إنشاء الرسم البياني...")
     try:
         await generate_portfolio_chart(uid, msg, ctx)
     except Exception as e:
         logging.error(f"portfolio_chart error: {e}")
-        await msg.edit_text(f"❌ حدث خطأ: {e}")
+        if msg and hasattr(msg, "edit_text"):
+            await msg.edit_text(f"❌ حدث خطأ: {e}")
+        else:
+            await ctx.bot.send_message(uid, f"❌ حدث خطأ: {e}")
 
 async def generate_portfolio_chart(uid, msg, ctx):
     """Generate and send portfolio performance chart"""
@@ -3213,7 +3304,8 @@ async def generate_portfolio_chart(uid, msg, ctx):
     plt.close(fig)
     buf.seek(0)
     await ctx.bot.send_photo(chat_id=uid, photo=buf, caption="📊 *رسم أداء المحفظة*\nمقارنة مع SPY", parse_mode="Markdown")
-    await msg.delete()
+    if msg and hasattr(msg, "delete"):
+        await msg.delete()
 
 # ─── POST INIT ───
 

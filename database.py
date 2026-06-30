@@ -319,6 +319,12 @@ class Database(dict):
         c.execute("INSERT OR REPLACE INTO reports (user_id, value) VALUES (?,?)", (suid, v))
         self.conn.commit()
 
+    def get_report_sent(self, uid, mode):
+        return self._get_config(f"report_sent:{uid}:{mode}", "")
+
+    def set_report_sent(self, uid, mode, value):
+        self._set_config(f"report_sent:{uid}:{mode}", value)
+
     def gc(self, uid):
         return self["conversations"].get(str(uid), [])
 
