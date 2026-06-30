@@ -197,8 +197,7 @@ def user_watchlist(uid):
 def user_screener(uid):
     if not _user_allowed(uid):
         return "🔒 غير مصرح", 403
-    results = get_screener() or []
-    return render_template("screener.html", uid=uid, results=results, NOW=datetime.now().strftime("%Y-%m-%d %H:%M"))
+    return render_template("screener.html", uid=uid, NOW=datetime.now().strftime("%Y-%m-%d %H:%M"))
 
 @app.route("/user/<int:uid>/sentiment")
 def user_sentiment(uid):

@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 import logging
+import time
 import yfinance as yf
 import pandas as pd
 import numpy as np
@@ -1295,6 +1296,9 @@ def get_market_group(group: str):
 
 
 def get_screener():
+    now = time.time()
+    if hasattr(get_screener, '_cache') and hasattr(get_screener, '_cache_ts') and now - get_screener._cache_ts < 300:
+        return get_screener._cache
     results = []
     prices = _batch_prices(SCREENER_SYMBOLS)
     for sym in SCREENER_SYMBOLS:
@@ -1302,6 +1306,8 @@ def get_screener():
             price, chg, pct = prices[sym]
             results.append((friendly_name(sym), sym, price, chg, pct))
     results.sort(key=lambda x: abs(x[4]), reverse=True)
+    get_screener._cache = results
+    get_screener._cache_ts = now
     return results
 
 
