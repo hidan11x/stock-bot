@@ -61,18 +61,22 @@ def _user_allowed(uid):
 def _get_chart_b64(sym):
     """Generate chart and return as base64 data URI"""
     try:
+        import base64
         from analysis import analyze
         hist, info = get_stock_data(sym, period="6mo", fetch_info=False)
         if hist is None:
             return None
         a = analyze(hist)
-        buf = io.BytesIO()
-        fig = generate_chart(sym, hist, a)
-        if fig:
-            fig.savefig(buf, format="png", dpi=100, bbox_inches="tight")
-            import base64
+        chart = generate_chart(sym, hist, a)
+        if not chart:
+            return None
+        if hasattr(chart, "savefig"):
+            buf = io.BytesIO()
+            chart.savefig(buf, format="png", dpi=100, bbox_inches="tight")
             buf.seek(0)
             return "data:image/png;base64," + base64.b64encode(buf.read()).decode()
+        with open(chart, "rb") as f:
+            return "data:image/png;base64," + base64.b64encode(f.read()).decode()
     except Exception as e:
         logging.error(f"chart error for {sym}: {e}")
     return None
