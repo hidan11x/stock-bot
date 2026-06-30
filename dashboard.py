@@ -11,6 +11,7 @@ from stock_data import get_stock_data, get_current_price, get_screener, get_news
 from analysis import analyze, get_signal
 from chart import generate_chart
 from advice import get_local_advice
+from coingecko import get_crypto_price, get_top_crypto, get_crypto_chart
 
 def _ccy(sym):
     s = str(sym).upper()
@@ -229,6 +230,12 @@ def user_virtual(uid):
     vp = db.get("virtual_portfolios", {}).get(str(uid), {"cash": 100000, "holdings": [], "history": []})
     return render_template("virtual.html", uid=uid, vp=vp, NOW=datetime.now().strftime("%Y-%m-%d %H:%M"))
 
+@app.route("/user/<int:uid>/crypto")
+def user_crypto(uid):
+    if not _user_allowed(uid):
+        return "🔒 غير مصرح", 403
+    return render_template("crypto.html", uid=uid, NOW=datetime.now().strftime("%Y-%m-%d %H:%M"))
+
 # ─── API ───
 
 @app.route("/api/price")
@@ -308,6 +315,22 @@ def api_screener():
             api_screener._scored = scored
             api_screener._cache_ts = _t.time()
     return jsonify(_convert({"results": scored[:30]}))
+
+@app.route("/api/crypto")
+def api_crypto():
+    sym = request.args.get("symbol", "").lower()
+    if sym:
+        data = get_crypto_price(sym)
+        return jsonify(_convert(data) if data else {"error": "not found"})
+    coins = get_top_crypto(20)
+    return jsonify({"coins": _convert(coins)})
+
+@app.route("/api/crypto/chart")
+def api_crypto_chart():
+    sym = request.args.get("symbol", "bitcoin")
+    days = int(request.args.get("days", 7))
+    data = get_crypto_chart(sym, days)
+    return jsonify(_convert(data) if data else {"error": "not found"})
 
 @app.route("/api/sentiment")
 def api_sentiment():

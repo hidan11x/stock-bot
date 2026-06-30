@@ -17,6 +17,7 @@ from stock_data import (
 )
 from analysis import analyze, get_signal
 from chart import generate_chart
+from coingecko import get_crypto_price, get_top_crypto
 from predict import predict_price
 from advice import get_ai_advice, get_local_advice, get_ai_chat, _call_ai_with_messages
 from database import db as sqldb, SUBSCRIPTION_PLANS
@@ -3188,6 +3189,45 @@ async def sizing_cmd(update, ctx):
     ]
     await ror(update, ctx, "\n".join(lines))
 
+async def crypto_cmd(update, ctx):
+    uid = update.effective_user.id
+    args = ctx.args or []
+    if args:
+        data = get_crypto_price(args[0])
+        if not data or not data.get("price"):
+            await update.message.reply_text(f"❌ رمز غير معروف: {args[0]}")
+            return
+        chg = data.get("change_pct_24h", 0)
+        emoji = "🟢" if chg >= 0 else "🔴"
+        def fmt(n):
+            if not n: return "—"
+            if n >= 1e12: return f"${n/1e12:.2f}T"
+            if n >= 1e9: return f"${n/1e9:.2f}B"
+            if n >= 1e6: return f"${n/1e6:.2f}M"
+            return f"${n:,.2f}"
+        msg = (
+            f"₿ *{data['symbol']}*\n\n"
+            f"💵 السعر: `${data['price']:,.2f}`\n"
+            f"{emoji} التغيير 24h: `{chg:+.2f}%`\n"
+            f"🏦 القيمة السوقية: `{fmt(data.get('market_cap'))}`\n"
+            f"📊 الحجم: `{fmt(data.get('volume_24h'))}`\n"
+            f"🕐 آخر تحديث: {data.get('updated', '')}\n\n"
+            f"🌐 لوحة العملات: /web"
+        )
+        await update.message.reply_text(msg, parse_mode="Markdown")
+        return
+    coins = get_top_crypto(10)
+    if not coins:
+        await update.message.reply_text("❌ تعذر جلب البيانات")
+        return
+    lines = ["₿ *أبرز 10 عملات رقمية*\n"]
+    for c in coins:
+        pct = c.get("change_pct_24h", 0) or 0
+        arrow = "🟢" if pct >= 0 else "🔴"
+        lines.append(f"{arrow} *{c['symbol']}* — `${c['price']:,.2f}` ({pct:+.2f}%)")
+    lines.append("\nللحصول على سعر محدد: `/crypto btc`")
+    await update.message.reply_text("\n".join(lines), parse_mode="Markdown")
+
 async def broadcast_cmd(update, ctx):
     """Admin broadcast to all users"""
     uid = update.effective_user.id
@@ -3447,7 +3487,8 @@ def main():
         ("risk",risk_cmd),("why",why_cmd),("backtest",backtest_cmd),("mode",mode_cmd),
         ("cancel",cancel_cmd),("exit",cancel_cmd),("plan",plan_cmd),("discount",discount_cmd),("sub",sub_cmd),
         ("broadcast",broadcast_cmd),("pchart",portfolio_chart_cmd),
-        ("sectors",sectors_cmd),("accuracy",accuracy_cmd),("sizing",sizing_cmd),("web",web_cmd),("dashboard",web_cmd),
+        ("sectors",sectors_cmd),("accuracy",accuracy_cmd),("sizing",sizing_cmd),("crypto",crypto_cmd),
+        ("web",web_cmd),("dashboard",web_cmd),
     ]: app.add_handler(CommandHandler(cmd, tracked(func, cmd)))
     app.add_handler(MessageHandler(filters.COMMAND, unknown_cmd))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, chat_handler))

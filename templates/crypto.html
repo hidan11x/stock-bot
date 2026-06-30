@@ -1,0 +1,136 @@
+{% extends "base.html" %}
+{% set active_page = 'crypto' %}
+{% block title %}العملات الرقمية{% endblock %}
+{% block page_title %}<i class="fab fa-bitcoin" style="color:#f7931a;margin-left:8px"></i> العملات الرقمية{% endblock %}
+{% block head %}
+<style>
+.crypto-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:14px;margin-bottom:20px}
+.coin-card{background:#131722;border-radius:12px;padding:16px;border:1px solid #1e2a3a;cursor:pointer;transition:.2s}
+.coin-card:hover{border-color:#f7931a;background:#0d111c}
+.coin-card .top{display:flex;align-items:center;gap:10px;margin-bottom:8px}
+.coin-card .top img{width:28px;height:28px;border-radius:50%}
+.coin-card .top .sym{font-size:15px;font-weight:700;color:#fff}
+.coin-card .top .name{font-size:12px;color:#888}
+.coin-card .pr{font-size:22px;font-weight:700;margin:4px 0}
+.coin-card .meta{display:flex;gap:14px;font-size:11px;color:#888;margin-top:6px}
+.coin-card .meta span i{margin-left:3px}
+.crypto-header{display:flex;align-items:center;gap:16px;flex-wrap:wrap;margin-bottom:20px;padding:20px;background:#131722;border-radius:12px;border:1px solid #1e2a3a}
+.crypto-header .big-sym{font-size:28px;font-weight:800;color:#fff}
+.crypto-header .big-price{font-size:36px;font-weight:800}
+.crypto-header .big-change{font-size:15px;font-weight:500}
+</style>
+{% endblock %}
+{% block content %}
+<div style="display:flex;gap:10px;align-items:center;margin-bottom:20px;padding:16px;background:#131722;border-radius:12px;border:1px solid #1e2a3a">
+<input type="text" id="cryptoSym" placeholder="رمز العملة (btc, eth, sol, ...)" value="bitcoin" style="flex:1;max-width:250px">
+<button onclick="goCrypto()"><i class="fas fa-search" style="margin-left:6px"></i> عرض</button>
+<button onclick="window.location.href='/user/{{ uid }}/signal?symbol=BTC-USD'" style="background:#00c853"><i class="fas fa-bell" style="margin-left:6px"></i> توصية</button>
+</div>
+
+<div class="crypto-header" id="cryptoHeader">
+<div>
+<div class="big-sym" id="coinName">Bitcoin</div>
+<div class="big-sym" style="font-size:14px;color:#888" id="coinSymbol">BTC</div>
+</div>
+<div style="text-align:left;margin-right:auto">
+<div class="big-price" id="coinPrice">—</div>
+<div class="big-change" id="coinChange">—</div>
+</div>
+</div>
+
+<div class="cards" id="coinStats">
+<div class="card" style="text-align:center"><div class="lbl">القيمة السوقية</div><div class="num blue" id="coinMCap">—</div></div>
+<div class="card" style="text-align:center"><div class="lbl">حجم التداول (24h)</div><div class="num yellow" id="coinVol">—</div></div>
+<div class="card" style="text-align:center"><div class="lbl">التغيير (24h)</div><div class="num" id="coinChgPct">—</div></div>
+</div>
+
+<div id="tv-chart" style="background:#131722;border-radius:12px;border:1px solid #1e2a3a;overflow:hidden;margin-bottom:20px;height:400px"></div>
+
+<div class="section-title"><i class="fas fa-fire" style="color:#f7931a;margin-left:6px"></i> أبرز العملات</div>
+<div class="crypto-grid" id="cryptoGrid"><div class="loading">جاري التحميل...</div></div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let currentCoin = "bitcoin";
+
+function goCrypto(){
+    var s = document.getElementById("cryptoSym").value.trim().toLowerCase() || "bitcoin";
+    currentCoin = s;
+    loadCoin(s);
+    loadChart(s);
+}
+
+function loadCoin(sym){
+    fetch("/api/crypto?symbol=" + sym).then(function(r){return r.json()}).then(function(d){
+        if(d.error) return;
+        document.getElementById("coinName").textContent = d.symbol || sym.toUpperCase();
+        document.getElementById("coinSymbol").textContent = sym.toUpperCase();
+        document.getElementById("coinPrice").textContent = "$" + (d.price || 0).toLocaleString();
+        var chg = d.change_pct_24h || 0;
+        var el = document.getElementById("coinChange");
+        el.textContent = (chg >= 0 ? "+" : "") + chg.toFixed(2) + "%";
+        el.className = "big-change " + (chg >= 0 ? "price-up" : "price-down");
+        document.getElementById("coinChgPct").textContent = (chg >= 0 ? "+" : "") + chg.toFixed(2) + "%";
+        document.getElementById("coinChgPct").parentElement.className = "card " + (chg >= 0 ? "green" : "red");
+        function fmt(n){if(!n)return"—";if(n>=1e12)return"$"+(n/1e12).toFixed(2)+"T";if(n>=1e9)return"$"+(n/1e9).toFixed(2)+"B";if(n>=1e6)return"$"+(n/1e6).toFixed(2)+"M";return"$"+n.toLocaleString()}
+        document.getElementById("coinMCap").textContent = fmt(d.market_cap);
+        document.getElementById("coinVol").textContent = fmt(d.volume_24h);
+    }).catch(function(){});
+}
+
+function loadChart(sym){
+    fetch("/api/crypto/chart?symbol=" + sym + "&days=7").then(function(r){return r.json()}).then(function(d){
+        if(!d || !d.prices || !d.prices.length) return;
+        var labels = d.prices.map(function(p){var d2=new Date(p.time*1000);return d2.toLocaleDateString("ar-SA",{month:"short",day:"numeric"})});
+        var vals = d.prices.map(function(p){return p.price});
+        var ctx = document.createElement("canvas");
+        document.getElementById("tv-chart").innerHTML = "";
+        document.getElementById("tv-chart").appendChild(ctx);
+        new Chart(ctx, {
+            type: "line",
+            data: {labels: labels, datasets: [{label: sym.toUpperCase(), data: vals, borderColor: "#f7931a", backgroundColor: "rgba(247,147,26,0.1)", fill: true, tension: 0.3}]},
+            options: {
+                responsive: true, maintainAspectRatio: false,
+                plugins: {legend: {labels: {color: "#888"}}},
+                scales: {
+                    x: {ticks: {color: "#555", maxTicksLimit: 10}, grid: {color: "#1e2a3a"}},
+                    y: {ticks: {color: "#555"}, grid: {color: "#1e2a3a"}}
+                }
+            }
+        });
+    }).catch(function(){});
+}
+
+fetch("/api/crypto").then(function(r){return r.json()}).then(function(d){
+    if(!d || !d.coins) return;
+    var grid = document.getElementById("cryptoGrid");
+    grid.innerHTML = d.coins.map(function(c){
+        var pct = c.change_pct_24h || 0;
+        var cls = pct >= 0 ? "price-up" : "price-down";
+        function fmt(n){if(!n)return"—";if(n>=1e12)return"$"+(n/1e12).toFixed(2)+"T";if(n>=1e9)return"$"+(n/1e9).toFixed(2)+"B";if(n>=1e6)return"$"+(n/1e6).toFixed(2)+"M";return"$"+n.toLocaleString()}
+        return '<div class="coin-card" onclick="goCoin(\'' + c.symbol.toLowerCase() + '\')">' +
+            '<div class="top">' +
+            (c.image ? '<img src="' + c.image + '" alt="">' : '<div style="width:28px;height:28px;background:#1e2a3a;border-radius:50%"></div>') +
+            '<div><div class="sym">' + c.symbol + '</div><div class="name">' + (c.name || "") + '</div></div>' +
+            '</div>' +
+            '<div class="pr ' + cls + '">$' + (c.price || 0).toLocaleString() + '</div>' +
+            '<div class="meta"><span><i class="fas fa-chart-line"></i> ' + (pct >=0?"+":"") + pct.toFixed(2) + '%</span>' +
+            '<span><i class="fas fa-database"></i> ' + fmt(c.market_cap) + '</span></div></div>';
+    }).join("");
+}).catch(function(){});
+document.getElementById("cryptoSym").addEventListener("keydown",function(e){if(e.key=="Enter")goCrypto()});
+
+function goCoin(sym){
+    document.getElementById("cryptoSym").value = sym;
+    currentCoin = sym;
+    loadCoin(sym);
+    loadChart(sym);
+    window.scrollTo({top: 0, behavior: "smooth"});
+}
+
+loadCoin("bitcoin");
+loadChart("bitcoin");
+setInterval(function(){loadCoin(currentCoin)}, 30000);
+</script>
+{% endblock %}
