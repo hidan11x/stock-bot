@@ -270,35 +270,43 @@ def api_chart_data():
 
 @app.route("/api/screener")
 def api_screener():
-    results = get_screener() or []
-    filter_type = request.args.get("filter", "")
-    scored = []
-    for name, sym, price, chg, pct in results[:50]:
-        if filter_type:
-            hist, _ = get_stock_data(sym, period="6mo", fetch_info=False)
-            if hist is None:
-                continue
-            a = analyze(hist)
-            score = a.get("score", 0)
-            trends = a.get("trends", {})
-            short_t = trends.get("قصير المدى", "محايد")
-            match = False
-            if filter_type == "golden" and a.get("golden_cross"): match = True
-            elif filter_type == "death" and a.get("golden_cross") is False: match = True
-            elif filter_type == "uptrend" and short_t == "صاعد": match = True
-            elif filter_type == "downtrend" and short_t == "هابط": match = True
-            elif filter_type == "rsi_low" and a.get("rsi", 50) < 35: match = True
-            elif filter_type == "rsi_high" and a.get("rsi", 50) > 65: match = True
-            elif filter_type == "volume" and a.get("volume_ratio", 1) > 1.5: match = True
-            elif filter_type == "adx" and a.get("adx", 0) > 25: match = True
-            if not match:
-                continue
-            scored.append({"name": name, "symbol": sym, "price": price, "change": chg,
-                          "change_pct": pct, "score": score,
-                          "rsi": a.get("rsi"), "adx": a.get("adx")})
-        else:
-            scored.append({"name": name, "symbol": sym, "price": price, "change": chg,
-                          "change_pct": pct, "score": 0})
+    import time as _t
+    cache_age = getattr(api_screener, '_cache_ts', 0)
+    if _t.time() - cache_age < 60 and getattr(api_screener, '_scored', None):
+        scored = api_screener._scored
+    else:
+        results = get_screener() or []
+        filter_type = request.args.get("filter", "")
+        scored = []
+        for name, sym, price, chg, pct in (results or [])[:50]:
+            if filter_type:
+                hist, _ = get_stock_data(sym, period="6mo", fetch_info=False)
+                if hist is None:
+                    continue
+                a = analyze(hist)
+                score = a.get("score", 0)
+                trends = a.get("trends", {})
+                short_t = trends.get("قصير المدى", "محايد")
+                match = False
+                if filter_type == "golden" and a.get("golden_cross"): match = True
+                elif filter_type == "death" and a.get("golden_cross") is False: match = True
+                elif filter_type == "uptrend" and short_t == "صاعد": match = True
+                elif filter_type == "downtrend" and short_t == "هابط": match = True
+                elif filter_type == "rsi_low" and a.get("rsi", 50) < 35: match = True
+                elif filter_type == "rsi_high" and a.get("rsi", 50) > 65: match = True
+                elif filter_type == "volume" and a.get("volume_ratio", 1) > 1.5: match = True
+                elif filter_type == "adx" and a.get("adx", 0) > 25: match = True
+                if not match:
+                    continue
+                scored.append({"name": name, "symbol": sym, "price": price, "change": chg,
+                              "change_pct": pct, "score": score,
+                              "rsi": a.get("rsi"), "adx": a.get("adx")})
+            else:
+                scored.append({"name": name, "symbol": sym, "price": price, "change": chg,
+                              "change_pct": pct, "score": 0})
+        if not filter_type:
+            api_screener._scored = scored
+            api_screener._cache_ts = _t.time()
     return jsonify(_convert({"results": scored[:30]}))
 
 @app.route("/api/sentiment")

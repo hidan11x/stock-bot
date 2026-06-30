@@ -1300,7 +1300,10 @@ def get_screener():
     if hasattr(get_screener, '_cache') and hasattr(get_screener, '_cache_ts') and now - get_screener._cache_ts < 300:
         return get_screener._cache
     results = []
-    prices = _batch_prices(SCREENER_SYMBOLS)
+    try:
+        prices = _batch_prices(SCREENER_SYMBOLS)
+    except Exception:
+        prices = {}
     for sym in SCREENER_SYMBOLS:
         if sym in prices:
             price, chg, pct = prices[sym]
@@ -1309,6 +1312,15 @@ def get_screener():
     get_screener._cache = results
     get_screener._cache_ts = now
     return results
+
+# Pre-populate screener cache in background at import time
+import threading as _t
+def _preload_screener():
+    try:
+        get_screener()
+    except Exception:
+        pass
+_t.Thread(target=_preload_screener, daemon=True).start()
 
 
 def market_status():
