@@ -1,107 +1,122 @@
-<!DOCTYPE html>
-<html dir="rtl" lang="ar">
-<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>{{ a.symbol }} — السعر</title>
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+{% extends "base.html" %}
+{% block title %}{{ a.symbol }} — السعر{% endblock %}
+{% set active_page = 'price' %}
+{% block head %}
 <style>
-*{margin:0;padding:0;box-sizing:border-box}
-body{font-family:system-ui,sans-serif;background:#0f0f1a;color:#e0e0e0;padding:20px;direction:rtl}
-.nav{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:20px;padding:16px;background:#1a1a2e;border-radius:12px;border:1px solid #2a2a4a}
-.nav a{padding:8px 16px;border-radius:8px;text-decoration:none;color:#aaa;font-size:14px;transition:.2s}
-.nav a:hover{background:#2a2a4a;color:#fff}
-.nav a.active{background:#448aff;color:#fff}
-.header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;padding:20px;background:#1a1a2e;border-radius:12px;border:1px solid #2a2a4a}
-.header h1{font-size:22px;color:#fff}
-.header .price-big{font-size:32px;font-weight:700}
-.price-up{color:#00c853}.price-down{color:#ff5252}
-.grid-2{display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:20px}
-@media(max-width:800px){.grid-2{grid-template-columns:1fr}}
-.chart-box{background:#1a1a2e;border-radius:12px;padding:20px;border:1px solid #2a2a4a}
-.chart-box img{width:100%;border-radius:8px}
-.info-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px}
-.info-card{background:#1a1a2e;border-radius:10px;padding:16px;border:1px solid #2a2a4a;text-align:center}
-.info-card .val{font-size:20px;font-weight:700;color:#fff;margin-top:4px}
-.info-card .lbl{font-size:12px;color:#888}
-.info-card.green .val{color:#00c853}
-.info-card.red .val{color:#ff5252}
-.info-card.blue .val{color:#448aff}
-.trends{margin-top:16px}
-.trend{display:inline-block;padding:4px 14px;border-radius:20px;font-size:13px;margin:0 4px 4px 0}
-.trend.up{background:#00c85322;color:#00c853;border:1px solid #00c85355}
-.trend.down{background:#ff525222;color:#ff5252;border:1px solid #ff525255}
-.trend.mid{background:#ffd74022;color:#ffd740;border:1px solid #ffd74055}
-input[type=text]{background:#1a1a2e;border:1px solid #2a2a4a;border-radius:8px;padding:10px 16px;color:#fff;font-size:14px;width:200px}
-button{background:#448aff;color:#fff;border:none;border-radius:8px;padding:10px 20px;cursor:pointer}
-.footer{text-align:center;margin-top:30px;color:#555;font-size:13px}
+.symbol-header{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:16px;margin-bottom:20px;padding:20px;background:#131722;border-radius:12px;border:1px solid #1e2a3a}
+.symbol-header .left{display:flex;align-items:center;gap:14px}
+.symbol-header .left .big-sym{font-size:24px;font-weight:800;color:#fff}
+.symbol-header .left .big-name{font-size:14px;color:#666}
+.symbol-header .right{text-align:left}
+.symbol-header .right .big-price{font-size:36px;font-weight:800}
+.symbol-header .right .big-change{font-size:15px;font-weight:500}
+.ta-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-bottom:20px}
+.ta-card{background:#131722;border-radius:10px;padding:14px;border:1px solid #1e2a3a;text-align:center}
+.ta-card .lbl{font-size:11px;color:#666;margin-bottom:4px}
+.ta-card .val{font-size:18px;font-weight:700}
+.ta-card .sub{font-size:11px;color:#555;margin-top:2px}
+.signal-box{background:#131722;border-radius:12px;padding:24px;border:1px solid #1e2a3a;text-align:center;margin-bottom:20px}
+.signal-box .big-verdict{font-size:28px;font-weight:800;margin:8px 0}
+.signal-box .conviction{font-size:14px;color:#888}
+.symbol-search{display:flex;gap:10px;align-items:center;margin-bottom:20px;padding:12px 16px;background:#131722;border-radius:10px;border:1px solid #1e2a3a}
+.symbol-search input{flex:1;max-width:250px}
 </style>
-</head>
-<body>
-<div class="header">
-<h1><i class="fas fa-chart-line"></i> {{ a.symbol }} · {{ a.name }}</h1>
-<div class="price-big {{ 'price-up' if a.score >= 0 else 'price-down' }}" id="livePrice">{{ a.price }} {{ a.currency }}</div>
-</div>
-<div class="nav">
-<a href="/user/{{ uid }}"><i class="fas fa-home"></i> الرئيسية</a>
-<a href="/user/{{ uid }}/price?symbol={{ a.symbol }}" class="active"><i class="fas fa-chart-line"></i> السعر</a>
-<a href="/user/{{ uid }}/signal?symbol={{ a.symbol }}"><i class="fas fa-bell"></i> التوصية</a>
-<a href="/user/{{ uid }}/portfolio"><i class="fas fa-briefcase"></i> المحفظة</a>
-<a href="/user/{{ uid }}/watchlist"><i class="fas fa-star"></i> المتابعة</a>
-<a href="/user/{{ uid }}/screener"><i class="fas fa-filter"></i> الفلتر</a>
-</div>
-<div class="nav" style="margin-top:-10px;background:transparent;padding:8px 0;border:none;">
+{% endblock %}
+{% block page_title %}<i class="fas fa-chart-line" style="color:#2196F3;margin-left:8px"></i> {{ a.symbol }}{% endblock %}
+
+{% block content %}
+<div class="symbol-search">
 <input type="text" id="symInput" placeholder="رمز السهم" value="{{ a.symbol }}">
-<button onclick="goSym()">عرض</button>
+<button onclick="goSym()"><i class="fas fa-search" style="margin-left:6px"></i> بحث</button>
+<button onclick="window.location.href='/user/{{ uid }}/signal?symbol='+document.getElementById('symInput').value.trim().toUpperCase()" style="background:#00c853"><i class="fas fa-bell" style="margin-left:6px"></i> التوصية</button>
+</div>
+
+<div class="symbol-header">
+<div class="left">
+<div><div class="big-sym">{{ a.symbol }}</div><div class="big-name">{{ a.name }}</div></div>
+</div>
+<div class="right">
+<div class="big-price {{ 'price-up' if a.score >= 0 else 'price-down' }}" id="livePrice">{{ a.price }} {{ a.currency }}</div>
+<div class="big-change" id="liveChange"></div>
+</div>
 </div>
 
 <div class="grid-2">
-<div class="chart-box">
-<h3 style="margin-bottom:12px;color:#ccc;">📈 الشارت</h3>
-{% if chart %}<img src="{{ chart }}" alt="chart">{% else %}<p class="footer">—</p>{% endif %}
+<div>
+<div id="tv-chart" style="background:#131722;border-radius:12px;border:1px solid #1e2a3a;overflow:hidden"></div>
 </div>
-<div class="chart-box">
-<h3 style="margin-bottom:12px;color:#ccc;">📊 تحليل فني</h3>
-<div class="info-grid">
-<div class="info-card {{ 'green' if a.rsi and a.rsi < 30 else 'red' if a.rsi and a.rsi > 70 else '' }}"><div class="lbl">RSI (14)</div><div class="val">{{ "%.1f"|format(a.rsi) if a.rsi else '—' }}</div></div>
-<div class="info-card {{ 'green' if a.adx and a.adx > 25 else '' }}"><div class="lbl">ADX (14)</div><div class="val">{{ "%.1f"|format(a.adx) if a.adx else '—' }}</div></div>
-<div class="info-card {{ 'green' if a.macd_bullish else 'red' if a.macd_bullish == false else '' }}"><div class="lbl">MACD</div><div class="val">{% if a.macd_bullish %}🟢 صاعد{% elif a.macd_bullish == false %}🔴 هابط{% else %}—{% endif %}</div></div>
-<div class="info-card"><div class="lbl">متوسط 20</div><div class="val">{{ "%.2f"|format(a.sma20) if a.sma20 else '—' }}</div></div>
-<div class="info-card"><div class="lbl">متوسط 50</div><div class="val">{{ "%.2f"|format(a.sma50) if a.sma50 else '—' }}</div></div>
-<div class="info-card"><div class="lbl">متوسط 200</div><div class="val">{{ "%.2f"|format(a.sma200) if a.sma200 else '—' }}</div></div>
-<div class="info-card green"><div class="lbl">الدعم</div><div class="val">{{ "%.2f"|format(a.support) if a.support else '—' }}</div></div>
-<div class="info-card red"><div class="lbl">المقاومة</div><div class="val">{{ "%.2f"|format(a.resistance) if a.resistance else '—' }}</div></div>
-<div class="info-card blue"><div class="lbl">الدعم 2</div><div class="val">{{ "%.2f"|format(a.support2) if a.support2 else '—' }}</div></div>
-<div class="info-card blue"><div class="lbl">المقاومة 2</div><div class="val">{{ "%.2f"|format(a.resistance2) if a.resistance2 else '—' }}</div></div>
-<div class="info-card"><div class="lbl">التذبذب</div><div class="val">{{ "%.1f"|format(a.volatility) if a.volatility else '—' }}</div></div>
-<div class="info-card {{ 'green' if a.volume_spike else '' }}"><div class="lbl">حجم التداول</div><div class="val">{{ "%.1f"|format(a.volume_ratio) if a.volume_ratio else '—' }}x</div></div>
-<div class="info-card"><div class="lbl">Bollinger أعلى</div><div class="val">{{ "%.2f"|format(a.bb_upper) if a.bb_upper else '—' }}</div></div>
-<div class="info-card"><div class="lbl">Bollinger أسفل</div><div class="val">{{ "%.2f"|format(a.bb_lower) if a.bb_lower else '—' }}</div></div>
+<div>
+<div class="ta-grid">
+<div class="ta-card {{ 'green' if a.rsi and a.rsi < 30 else 'red' if a.rsi and a.rsi > 70 else '' }}"><div class="lbl">RSI (14)</div><div class="val">{{ "%.1f"|format(a.rsi) if a.rsi else '—' }}</div><div class="sub">{{ 'تشبع بيع' if a.rsi and a.rsi < 30 else 'تشبع شراء' if a.rsi and a.rsi > 70 else 'محايد' if a.rsi else '' }}</div></div>
+<div class="ta-card {{ 'green' if a.adx and a.adx > 25 else '' }}"><div class="lbl">ADX (14)</div><div class="val">{{ "%.1f"|format(a.adx) if a.adx else '—' }}</div><div class="sub">{{ 'اتجاه قوي' if a.adx and a.adx > 25 else 'تذبذب' if a.adx else '' }}</div></div>
+<div class="ta-card {{ 'green' if a.macd_bullish else 'red' if a.macd_bullish == false else '' }}"><div class="lbl">MACD</div><div class="val">{% if a.macd_bullish %}صاعد{% elif a.macd_bullish == false %}هابط{% else %}—{% endif %}</div><div class="sub">{% if a.macd_bullish %}زخم إيجابي{% elif a.macd_bullish == false %}زخم سلبي{% endif %}</div></div>
+<div class="ta-card"><div class="lbl">الدعم</div><div class="val green">{{ "%.2f"|format(a.support) if a.support else '—' }}</div><div class="sub">دعم رئيسي</div></div>
+<div class="ta-card"><div class="lbl">المقاومة</div><div class="val red">{{ "%.2f"|format(a.resistance) if a.resistance else '—' }}</div><div class="sub">مقاومة رئيسية</div></div>
+<div class="ta-card {{ 'green' if a.score and a.score > 3 else 'red' if a.score and a.score < -3 else '' }}"><div class="lbl">التقييم</div><div class="val">{{ "%.1f"|format(a.score) if a.score else '—' }}</div><div class="sub">من 10</div></div>
+<div class="ta-card"><div class="lbl">التذبذب</div><div class="val">{{ "%.1f"|format(a.volatility) if a.volatility else '—' }}%</div><div class="sub">{{ 'مرتفع' if a.volatility and a.volatility > 3 else 'منخفض' if a.volatility and a.volatility < 1 else 'متوسط' if a.volatility else '' }}</div></div>
+<div class="ta-card {{ 'green' if a.volume_spike else '' }}"><div class="lbl">الحجم</div><div class="val">{{ "%.1f"|format(a.volume_ratio) if a.volume_ratio else '—' }}x</div><div class="sub">{{ 'مرتفع' if a.volume_spike else 'طبيعي' }}</div></div>
 </div>
+
 {% if a.trends %}
-<div class="trends">
+<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:4px;justify-content:center">
 {% for period, direction in a.trends.items() %}
-<span class="trend {{ 'up' if direction == 'صاعد' else 'down' if direction == 'هابط' else 'mid' }}">{{ period }}: {{ direction }}</span>
+<span class="badge {{ 'green' if direction == 'صاعد' else 'red' if direction == 'هابط' else 'yellow' }}">{{ period }}: {{ direction }}</span>
 {% endfor %}
 </div>
 {% endif %}
 </div>
 </div>
 
-<div class="footer">Stock Bot Dashboard — {{ NOW }}</div>
+<div class="signal-box">
+<div class="lbl" style="color:#666;font-size:13px">إشارة التداول</div>
+{% set verdict_class = 'price-up' if a.score and a.score > 3 else 'price-down' if a.score and a.score < -3 else 'price-neutral' %}
+<div class="big-verdict {{ verdict_class }}">{{ a.verdict }}</div>
+<div class="conviction">قناعة: {{ a.conviction }} | النقاط: {{ "%.1f"|format(a.score) if a.score else '—' }}/10</div>
+</div>
+{% endblock %}
 
+{% block scripts %}
 <script>
-function goSym() {
-    const s = document.getElementById("symInput").value.trim().toUpperCase() || "SPY";
-    window.location.href = `/user/{{ uid }}/price?symbol=${s}`;
+function goSym(){
+  var s = document.getElementById("symInput").value.trim().toUpperCase() || "SPY";
+  window.location.href = "/user/{{ uid }}/price?symbol=" + s;
 }
-setInterval(()=>{
-    const s = document.getElementById("symInput").value.trim().toUpperCase() || "SPY";
-    fetch(`/api/price?symbol=${s}`).then(r=>r.json()).then(d=>{
-        if(d.error) return;
-        document.getElementById("livePrice").textContent = d.price + " " + d.currency;
-        document.getElementById("livePrice").className = "price-big " + (d.change >= 0 ? "price-up" : "price-down");
-    }).catch(()=>{});
-}, 30000);
+
+if (typeof TradingView !== 'undefined') {
+  new TradingView.widget({
+    "container_id": "tv-chart",
+    "width": "100%",
+    "height": 600,
+    "symbol": "{{ a.symbol }}",
+    "interval": "D",
+    "timezone": "Asia/Riyadh",
+    "theme": "dark",
+    "style": "1",
+    "locale": "ar",
+    "toolbar_bg": "#0d111c",
+    "enable_publishing": false,
+    "hide_side_toolbar": false,
+    "allow_symbol_change": true,
+    "calendar": false,
+    "studies": ["RSI@tv-basicstudies", "MACD@tv-basicstudies", "BB@tv-basicstudies"],
+    "support_host": "https://www.tradingview.com"
+  });
+}
+
+function updatePrice(){
+  var s = document.getElementById("symInput").value.trim().toUpperCase() || "SPY";
+  fetch("/api/price?symbol=" + s).then(function(r){return r.json()}).then(function(d){
+    if(d.error) return;
+    var el = document.getElementById("livePrice");
+    el.textContent = d.price + " " + d.currency;
+    el.className = "big-price " + ((d.change || 0) >= 0 ? "price-up" : "price-down");
+    var chg = d.change || 0; var pct = d.change_pct || 0;
+    document.getElementById("liveChange").textContent = (chg >= 0 ? "+" : "") + chg.toFixed(2) + " (" + (pct >= 0 ? "+" : "") + pct.toFixed(2) + "%)";
+    document.getElementById("liveChange").className = "big-change " + (chg >= 0 ? "price-up" : "price-down");
+  }).catch(function(){});
+}
+
+setInterval(updatePrice, 30000);
+updatePrice();
 </script>
-</body>
-</html>
+{% endblock %}

@@ -1,76 +1,142 @@
-<!DOCTYPE html>
-<html dir="rtl" lang="ar">
-<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>المحفظة</title>
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+{% extends "base.html" %}
+{% block title %}المحفظة{% endblock %}
+{% set active_page = 'portfolio' %}
+{% block head %}
 <style>
-*{margin:0;padding:0;box-sizing:border-box}
-body{font-family:system-ui,sans-serif;background:#0f0f1a;color:#e0e0e0;padding:20px;direction:rtl}
-.nav{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:20px;padding:16px;background:#1a1a2e;border-radius:12px;border:1px solid #2a2a4a}
-.nav a{padding:8px 16px;border-radius:8px;text-decoration:none;color:#aaa;font-size:14px;transition:.2s}
-.nav a:hover{background:#2a2a4a;color:#fff}
-.nav a.active{background:#448aff;color:#fff}
-.header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;padding:20px;background:#1a1a2e;border-radius:12px;border:1px solid #2a2a4a}
-.header h1{font-size:22px;color:#fff}
-.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px;margin-bottom:20px}
-.card{background:#1a1a2e;border-radius:12px;padding:20px;border:1px solid #2a2a4a;text-align:center}
-.card .num{font-size:28px;font-weight:700;color:#fff;margin:8px 0}
-.card .lbl{font-size:13px;color:#888}
-.card.green .num{color:#00c853}.card.red .num{color:#ff5252}.card.blue .num{color:#448aff}
-table{width:100%;border-collapse:collapse;background:#1a1a2e;border-radius:12px;overflow:hidden;border:1px solid #2a2a4a}
-th{background:#2a2a4a;padding:12px;text-align:right;font-size:13px;color:#aaa}
-td{padding:10px 12px;border-top:1px solid #2a2a4a;font-size:14px}
-tr:hover td{background:#252540}
-.badge{padding:2px 10px;border-radius:12px;font-size:12px}
-.badge.green{background:#00c85322;color:#00c853}
-.badge.red{background:#ff525222;color:#ff5252}
-.footer{text-align:center;margin-top:30px;color:#555;font-size:13px}
+.portfolio-header{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin-bottom:20px}
+.pf-card{background:#131722;border-radius:10px;padding:16px;border:1px solid #1e2a3a;text-align:center}
+.pf-card .lbl{font-size:11px;color:#666}
+.pf-card .val{font-size:20px;font-weight:700;color:#fff;margin:4px 0}
+.trade-box{display:flex;gap:10px;flex-wrap:wrap;align-items:end;padding:16px;background:#131722;border-radius:12px;border:1px solid #1e2a3a;margin-bottom:20px}
+.trade-field{display:flex;flex-direction:column;gap:4px}
+.trade-field label{font-size:11px;color:#666}
+.trade-box .buy-btn{background:#00c853}
+.trade-box .sell-btn{background:#ff5252}
+.history-toggle{background:none;border:1px solid #1e2a3a;color:#888;padding:10px 16px;border-radius:8px;cursor:pointer;font-size:13px;width:100%;text-align:center;transition:all .2s}
+.history-toggle:hover{background:#1e2a3a;color:#fff}
+.history-box{max-height:300px;overflow-y:auto;margin-top:12px}
+.section-title{font-size:14px;color:#aaa;font-weight:600;margin-bottom:12px;display:flex;align-items:center;gap:8px}
+.section-title i{color:#2196F3}
 </style>
-</head>
-<body>
-<div class="header">
-<h1><i class="fas fa-briefcase"></i> المحفظة</h1>
-</div>
-<div class="nav">
-<a href="/user/{{ uid }}"><i class="fas fa-home"></i> الرئيسية</a>
-<a href="/user/{{ uid }}/portfolio" class="active"><i class="fas fa-briefcase"></i> المحفظة</a>
-<a href="/user/{{ uid }}/watchlist"><i class="fas fa-star"></i> المتابعة</a>
-<a href="/user/{{ uid }}/virtual"><i class="fas fa-gamepad"></i> المحاكاة</a>
-</div>
+{% endblock %}
+{% block page_title %}<i class="fas fa-briefcase" style="color:#2196F3;margin-left:8px"></i> المحفظة{% endblock %}
 
+{% block content %}
 {% set pf = data.portfolio %}
-{% set total_value = pf|sum(attribute='value') %}
-<div class="cards">
-<div class="card blue"><div class="num">{{ pf|length }}</div><div class="lbl">عدد الأسهم</div></div>
-<div class="card green"><div class="num">{{ "%.2f"|format(total_value) if total_value else 0 }}</div><div class="lbl">القيمة الإجمالية</div></div>
-<div class="card"><div class="num">{{ data.watchlist|length }}</div><div class="lbl">قائمة المتابعة</div></div>
+{% set total_value = pf|sum(attribute='value') if pf else 0 %}
+{% set total_cost = pf|sum(attribute='price')|sum(attribute='qty') if pf else 0 %}
+
+<div class="portfolio-header">
+<div class="pf-card blue"><div class="lbl"><i class="fas fa-money-bill-wave" style="color:#2196F3;margin-left:4px"></i> النقد</div><div class="val" id="cashVal">—</div></div>
+<div class="pf-card"><div class="lbl"><i class="fas fa-layer-group" style="color:#888;margin-left:4px"></i> قيمة الأسهم</div><div class="val" id="holdingsVal">{{ "%.2f"|format(total_value) if total_value else '0.00' }}</div></div>
+<div class="pf-card green"><div class="lbl"><i class="fas fa-calculator" style="color:#00c853;margin-left:4px"></i> الإجمالي</div><div class="val" id="totalVal">{{ "%.2f"|format(total_value) if total_value else '0.00' }}</div></div>
+<div class="pf-card" id="pnlCard"><div class="lbl"><i class="fas fa-chart-simple" style="color:#888;margin-left:4px"></i> الربح/الخسارة</div><div class="val" id="pnlVal">—</div></div>
 </div>
 
+<div class="trade-box">
+<div class="trade-field"><label>رمز السهم</label><input type="text" id="symInput" placeholder="SPY" value="SPY"></div>
+<div class="trade-field"><label>الكمية</label><input type="number" id="qtyInput" value="1" min="0" step="1"></div>
+<div class="trade-field"><label>سعر</label><input type="text" id="priceInput" placeholder="سعر السوق"></div>
+<button class="buy-btn" onclick="trade('buy')"><i class="fas fa-cart-plus" style="margin-left:6px"></i> شراء</button>
+<button class="sell-btn" onclick="trade('sell')"><i class="fas fa-cart-minus" style="margin-left:6px"></i> بيع</button>
+</div>
+
+<div id="tradeResult" style="margin-bottom:12px;text-align:center;font-size:13px;"></div>
+
+<div class="section-title"><i class="fas fa-list"></i> الأسهم الحالية</div>
 {% if pf %}
-<h3 style="margin-bottom:12px;color:#ccc;">الأسهم</h3>
 <table>
-<thead><tr><th>#</th><th>الرمز</th><th>الكمية</th><th>متوسط السعر</th><th>السعر الحالي</th><th>الفرق</th><th>الوزن</th></tr></thead>
+<thead><tr><th>#</th><th>الرمز</th><th>الكمية</th><th>متوسط السعر</th><th>السعر الحالي</th><th>القيمة</th><th>الفرق</th><th>الفرق %</th></tr></thead>
 <tbody>
 {% for item in pf %}
 {% set live = item.current_price or item.price %}
 {% set diff = ((item.current_price or item.price) - item.price) * item.qty if item.price else 0 %}
+{% set diff_pct = ((item.current_price or item.price) - item.price) / item.price * 100 if item.price else 0 %}
 <tr>
 <td>{{ loop.index }}</td>
-<td><a href="/user/{{ uid }}/price?symbol={{ item.symbol }}" style="color:#448aff;text-decoration:none;font-weight:700">{{ item.symbol }}</a></td>
+<td><a href="/user/{{ uid }}/price?symbol={{ item.symbol }}" style="color:#2196F3;font-weight:700;text-decoration:none">{{ item.symbol }}</a></td>
 <td>{{ item.qty }}</td>
 <td>{{ "%.2f"|format(item.price) }}</td>
-<td>{{ "%.2f"|format(live) }}</td>
-<td class="{{ 'green' if diff >= 0 else 'red' }}">{{ "%.2f"|format(diff) }}</td>
-<td>{{ "%.1f"|format(item.value / total_value * 100) if total_value else 0 }}%</td>
+<td id="cp_{{ item.symbol }}">{{ "%.2f"|format(live) }}</td>
+<td id="val_{{ item.symbol }}">{{ "%.2f"|format(item.qty * live) }}</td>
+<td class="{{ 'price-up' if diff >= 0 else 'price-down' }}">{{ "%.2f"|format(diff) }}</td>
+<td class="{{ 'price-up' if diff_pct >= 0 else 'price-down' }}">{{ "%.2f"|format(diff_pct) }}%</td>
 </tr>
 {% endfor %}
 </tbody>
 </table>
 {% else %}
-<div class="card"><div class="lbl">المحفظة فارغة</div></div>
+<div style="text-align:center;padding:30px;color:#555;background:#131722;border-radius:12px;border:1px solid #1e2a3a">
+<i class="fas fa-inbox" style="font-size:32px;display:block;margin-bottom:12px;color:#333"></i>
+المحفظة فارغة. استخدم نموذج الشراء أعلاه لإضافة أسهم.
+</div>
 {% endif %}
 
-<div class="footer">Stock Bot Dashboard — {{ NOW }}</div>
-</body>
-</html>
+<button class="history-toggle" onclick="toggleHistory()" style="margin-top:16px">
+<i class="fas fa-clock-rotate" style="margin-left:6px"></i> سجل العمليات
+</button>
+<div class="history-box" id="historyBox" style="display:none">
+{% if data.portfolio %}
+<table>
+<thead><tr><th>#</th><th>الرمز</th><th>العملية</th><th>الكمية</th><th>السعر</th><th>التاريخ</th></tr></thead>
+<tbody>
+{% for item in data.portfolio %}
+{% if item.history %}
+{% for h in item.history[-10:] %}
+<tr><td>{{ loop.index }}</td><td>{{ item.symbol }}</td><td>{{ h.action }}</td><td>{{ h.qty }}</td><td>{{ "%.2f"|format(h.price) }}</td><td>{{ h.time[:16] if h.time else '—' }}</td></tr>
+{% endfor %}
+{% endif %}
+{% endfor %}
+</tbody>
+</table>
+{% else %}
+<div style="text-align:center;padding:20px;color:#555">لا يوجد سجل</div>
+{% endif %}
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function trade(action){
+  var sym = document.getElementById("symInput").value.trim().toUpperCase();
+  var qty = parseFloat(document.getElementById("qtyInput").value);
+  var price = document.getElementById("priceInput").value.trim();
+  if(!sym || qty <= 0){
+    document.getElementById("tradeResult").innerHTML = "❌ أدخل رمز وكمية صحيحة";
+    return;
+  }
+  document.getElementById("tradeResult").innerHTML = "⏳ جاري التنفيذ...";
+  fetch("/api/portfolio/trade", {
+    method: "POST",
+    headers: {"Content-Type": "application/json"},
+    body: JSON.stringify({uid: {{ uid }}, action: action, symbol: sym, qty: qty, price: price || undefined})
+  }).then(function(r){return r.json()}).then(function(d){
+    if(d.error){
+      document.getElementById("tradeResult").innerHTML = "❌ " + d.error;
+    } else {
+      document.getElementById("tradeResult").innerHTML = "✅ تم بنجاح!";
+      setTimeout(function(){location.reload()}, 1000);
+    }
+  }).catch(function(){
+    document.getElementById("tradeResult").innerHTML = "❌ خطأ في الاتصال";
+  });
+}
+
+function toggleHistory(){
+  var box = document.getElementById("historyBox");
+  box.style.display = box.style.display === "none" ? "block" : "none";
+}
+
+{% for item in pf %}
+(function(sym){
+  fetch("/api/price?symbol=" + sym).then(function(r){return r.json()}).then(function(d){
+    if(d.error) return;
+    var cp = document.getElementById("cp_" + sym);
+    var val = document.getElementById("val_" + sym);
+    if(cp) cp.textContent = d.price.toFixed(2);
+    if(val) val.textContent = (d.price * {{ item.qty }}).toFixed(2);
+  }).catch(function(){});
+})("{{ item.symbol }}");
+{% endfor %}
+</script>
+{% endblock %}

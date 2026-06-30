@@ -1,58 +1,33 @@
-<!DOCTYPE html>
-<html dir="rtl" lang="ar">
-<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>تحليل المشاعر</title>
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+{% extends "base.html" %}
+{% set active_page = 'sentiment' %}
+{% block title %}تحليل المشاعر{% endblock %}
+{% block page_title %}<i class="fas fa-newspaper" style="color:#2196F3;margin-left:8px"></i> تحليل المشاعر{% endblock %}
+{% block head %}
 <style>
-*{margin:0;padding:0;box-sizing:border-box}
-body{font-family:system-ui,sans-serif;background:#0f0f1a;color:#e0e0e0;padding:20px;direction:rtl}
-.nav{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:20px;padding:16px;background:#1a1a2e;border-radius:12px;border:1px solid #2a2a4a}
-.nav a{padding:8px 16px;border-radius:8px;text-decoration:none;color:#aaa;font-size:14px;transition:.2s}
-.nav a:hover{background:#2a2a4a;color:#fff}
-.nav a.active{background:#448aff;color:#fff}
-.header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;padding:20px;background:#1a1a2e;border-radius:12px;border:1px solid #2a2a4a}
-.header h1{font-size:22px;color:#fff}
-input[type=text]{background:#1a1a2e;border:1px solid #2a2a4a;border-radius:8px;padding:10px 16px;color:#fff;font-size:14px;width:200px}
-button{background:#448aff;color:#fff;border:none;border-radius:8px;padding:10px 20px;cursor:pointer}
-.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:16px;margin-bottom:20px}
-.news-card{background:#1a1a2e;border-radius:12px;padding:16px;border:1px solid #2a2a4a;transition:.2s}
-.news-card:hover{border-color:#448aff}
+.news-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:16px;margin-bottom:20px}
+.news-card{background:#131722;border-radius:12px;padding:16px;border:1px solid #1e2a3a;transition:.2s}
+.news-card:hover{border-color:#2196F3}
 .news-card .title{font-size:14px;color:#ddd;line-height:1.6}
 .news-card .sent{display:inline-block;padding:2px 12px;border-radius:12px;font-size:12px;margin-top:8px}
-.sent.pos{background:#00c85322;color:#00c853}
-.sent.neg{background:#ff525222;color:#ff5252}
-.sent.neu{background:#ffd74022;color:#ffd740}
+.news-card .sent.pos{background:#00c85322;color:#00c853}
+.news-card .sent.neg{background:#ff525222;color:#ff5252}
+.news-card .sent.neu{background:#ffd74022;color:#ffd740}
 .news-card .score{font-size:12px;color:#888;margin-top:4px}
-.news-card a{color:#448aff;text-decoration:none;font-size:13px;display:inline-block;margin-top:6px}
+.news-card a{color:#2196F3;text-decoration:none;font-size:13px;display:inline-block;margin-top:6px}
 .news-card a:hover{text-decoration:underline}
-.sent-cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px;margin-bottom:20px}
-.sent-card{background:#1a1a2e;border-radius:12px;padding:20px;border:1px solid #2a2a4a;text-align:center}
-.sent-card .sym{font-size:16px;font-weight:700;color:#fff}
-.sent-card .sentiment{font-size:18px;margin:8px 0}
-.sent-card .count{font-size:12px;color:#888}
-.footer{text-align:center;margin-top:30px;color:#555;font-size:13px}
-.msg{text-align:center;padding:40px;color:#888;font-size:16px}
 </style>
-</head>
-<body>
-<div class="header">
-<h1><i class="fas fa-newspaper"></i> تحليل المشاعر</h1>
-</div>
-<div class="nav">
-<a href="/user/{{ uid }}"><i class="fas fa-home"></i> الرئيسية</a>
-<a href="/user/{{ uid }}/sentiment" class="active"><i class="fas fa-newspaper"></i> المشاعر</a>
-{% if symbol %}<a href="/user/{{ uid }}/sentiment" style="color:#aaa;">🌐 السوق</a>{% endif %}
-</div>
+{% endblock %}
+{% block content %}
+<div style="display:flex;gap:10px;align-items:center;margin-bottom:20px;padding:16px;background:#131722;border-radius:12px;border:1px solid #1e2a3a">
+<input type="text" id="symInput" placeholder="رمز السهم" value="{{ symbol }}" style="flex:1;max-width:250px">
+<button onclick="goSym()"><i class="fas fa-search" style="margin-left:6px"></i> تحليل</button>
 {% if symbol %}
-<div class="nav" style="margin-top:-10px;background:transparent;padding:8px 0;border:none;">
-<input type="text" id="symInput" placeholder="رمز السهم" value="{{ symbol }}">
-<button onclick="goSym()">تحليل</button>
-</div>
+<a href="/user/{{ uid }}/sentiment" style="color:#888;font-size:13px"><i class="fas fa-globe"></i> السوق ككل</a>
 {% endif %}
+</div>
 
 {% if symbol and news %}
-<div class="header" style="justify-content:center;gap:12px;flex-wrap:wrap;">
-<h1>{{ symbol }}</h1>
+<div style="display:flex;align-items:center;justify-content:center;gap:16px;flex-wrap:wrap;margin-bottom:20px;padding:20px;background:#131722;border-radius:12px;border:1px solid #1e2a3a">
 {% set pos = news|selectattr("sentiment","equalto","POSITIVE")|list|length %}
 {% set neg = news|selectattr("sentiment","equalto","NEGATIVE")|list|length %}
 {% set neu = news|selectattr("sentiment","equalto","NEUTRAL")|list|length %}
@@ -64,22 +39,21 @@ button{background:#448aff;color:#fff;border:none;border-radius:8px;padding:10px 
 {% else %}
 {% set bgc = "#ffd74022" %}{% set tc = "#ffd740" %}{% set bc = "#ffd74055" %}{% set label = "محايدة ⚪" %}
 {% endif %}
-<span class="status" style="padding:8px 20px;border-radius:20px;font-size:16px;font-weight:700;background:{{ bgc }};color:{{ tc }};border:1px solid {{ bc }};">
-{{ label }}
-</span>
+<h1 style="font-size:20px;font-weight:700;color:#fff">{{ symbol }}</h1>
+<span style="padding:8px 20px;border-radius:20px;font-size:16px;font-weight:700;background:{{ bgc }};color:{{ tc }};border:1px solid {{ bc }}">{{ label }}</span>
 </div>
-{% if news and news[0] %}
-<div class="sent-cards">
-<div class="sent-card"><div class="sym">{{ pos }}</div><div class="sentiment sent pos">🟢 إيجابي</div></div>
-<div class="sent-card"><div class="sym">{{ neg }}</div><div class="sentiment sent neg">🔴 سلبي</div></div>
-<div class="sent-card"><div class="sym">{{ neu }}</div><div class="sentiment sent neu">⚪ محايد</div></div>
+
+<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:14px;margin-bottom:20px">
+<div class="card" style="text-align:center;border-color:#00c85355"><div class="num green">{{ pos }}</div><div class="lbl">🟢 إيجابي</div></div>
+<div class="card" style="text-align:center;border-color:#ff525255"><div class="num red">{{ neg }}</div><div class="lbl">🔴 سلبي</div></div>
+<div class="card" style="text-align:center;border-color:#ffd74055"><div class="num yellow">{{ neu }}</div><div class="lbl">⚪ محايد</div></div>
 </div>
-{% endif %}
-<div class="grid">
+
+<div class="news-grid">
 {% for n in news %}
 <div class="news-card">
 <div class="title">{{ n.title }}</div>
-<div class="sent {{ n.sentiment.lower()[:3] if n.sentiment in ['POSITIVE','NEGATIVE'] else 'neu' }}">
+<div class="sent {{ 'pos' if n.sentiment == 'POSITIVE' else 'neg' if n.sentiment == 'NEGATIVE' else 'neu' }}">
 {% if n.sentiment == 'POSITIVE' %}🟢 إيجابي{% elif n.sentiment == 'NEGATIVE' %}🔴 سلبي{% else %}⚪ محايد{% endif %}
 </div>
 <div class="score">الثقة: {{ "%.1f"|format(n.score * 100) if n.score else '—' }}%</div>
@@ -88,6 +62,7 @@ button{background:#448aff;color:#fff;border:none;border-radius:8px;padding:10px 
 {% endfor %}
 </div>
 {% elif market %}
+<div style="text-align:center;margin-bottom:20px;padding:24px;background:#131722;border-radius:12px;border:1px solid #1e2a3a">
 {% if market.overall.find('إيجابي') >= 0 %}
 {% set bgc2 = "#00c85322" %}{% set tc2 = "#00c853" %}{% set bc2 = "#00c85355" %}
 {% elif market.overall.find('سلبي') >= 0 %}
@@ -95,31 +70,27 @@ button{background:#448aff;color:#fff;border:none;border-radius:8px;padding:10px 
 {% else %}
 {% set bgc2 = "#ffd74022" %}{% set tc2 = "#ffd740" %}{% set bc2 = "#ffd74055" %}
 {% endif %}
-<div class="header" style="justify-content:center;">
-<span class="status" style="padding:8px 20px;border-radius:20px;font-size:18px;font-weight:700;background:{{ bgc2 }};color:{{ tc2 }};border:1px solid {{ bc2 }};">
-مشاعر السوق: {{ market.overall }}
-</span>
+<span style="padding:8px 20px;border-radius:20px;font-size:18px;font-weight:700;background:{{ bgc2 }};color:{{ tc2 }};border:1px solid {{ bc2 }}">مشاعر السوق: {{ market.overall }}</span>
 </div>
-<div class="sent-cards">
+<div class="cards">
 {% for s in market.symbols %}
-<div class="sent-card">
-<div class="sym">{{ s.symbol }}</div>
-<div class="sentiment">{{ s.sentiment }}</div>
-<div class="count">{{ s.count }} خبر</div>
-</div>
+<div class="card" style="text-align:center"><div class="num">{{ s.symbol }}</div><div class="lbl">{{ s.sentiment }}</div><div style="font-size:11px;color:#666;margin-top:4px">{{ s.count }} خبر</div></div>
 {% endfor %}
 </div>
 {% else %}
-<div class="msg">📭 ابحث عن رمز لترى تحليل المشاعر</div>
+<div style="text-align:center;padding:60px 20px;color:#555;font-size:16px">
+<i class="fas fa-newspaper" style="font-size:40px;display:block;margin-bottom:16px;color:#333"></i>
+ابحث عن رمز لترى تحليل المشاعر
+</div>
 {% endif %}
+{% endblock %}
 
-<div class="footer">Stock Bot Dashboard — {{ NOW }}</div>
-
+{% block scripts %}
 <script>
 function goSym() {
     const s = document.getElementById("symInput").value.trim().toUpperCase();
-    window.location.href = `/user/{{ uid }}/sentiment?symbol=${s}`;
+    if(s) window.location.href = `/user/{{ uid }}/sentiment?symbol=${s}`;
 }
+document.getElementById("symInput").addEventListener("keydown", function(e) { if(e.key == "Enter") goSym(); });
 </script>
-</body>
-</html>
+{% endblock %}
